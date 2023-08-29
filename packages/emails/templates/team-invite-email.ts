@@ -1,4 +1,4 @@
-import type { TFunction } from "next-i18next";
+import { TFunction } from "next-i18next";
 
 import { APP_NAME } from "@calcom/lib/constants";
 
@@ -12,7 +12,6 @@ export type TeamInvite = {
   teamName: string;
   joinLink: string;
   isCalcomMember: boolean;
-  isOrg: boolean;
 };
 
 export default class TeamInviteEmail extends BaseEmail {
@@ -32,9 +31,6 @@ export default class TeamInviteEmail extends BaseEmail {
         user: this.teamInviteEvent.from,
         team: this.teamInviteEvent.teamName,
         appName: APP_NAME,
-        entity: this.teamInviteEvent
-          .language(this.teamInviteEvent.isOrg ? "organization" : "team")
-          .toLowerCase(),
       }),
       html: renderEmail("TeamInviteEmail", this.teamInviteEvent),
       text: "",

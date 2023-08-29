@@ -32,7 +32,7 @@ const SkeletonLoader = ({ title, description }: { title: string; description: st
   return (
     <SkeletonContainer>
       <Meta title={title} description={description} />
-      <div className="mb-8 mt-6 space-y-6">
+      <div className="mt-6 mb-8 space-y-6">
         <div className="flex items-center">
           <SkeletonButton className="mr-6 h-32 w-48 rounded-md p-5" />
           <SkeletonButton className="mr-6 h-32 w-48 rounded-md p-5" />
@@ -69,13 +69,6 @@ const AppearanceView = () => {
       metadata: user?.metadata as z.infer<typeof userMetadata>,
     },
   });
-
-  const selectedTheme = formMethods.watch("theme");
-  const selectedThemeIsDark =
-    selectedTheme === "dark" ||
-    (selectedTheme === "" &&
-      typeof document !== "undefined" &&
-      document.documentElement.classList.contains("dark"));
 
   const {
     formState: { isSubmitting, isDirty },
@@ -151,7 +144,6 @@ const AppearanceView = () => {
 
       <hr className="border-subtle my-8 border [&:has(+hr)]:hidden" />
       <BookerLayoutSelector
-        isDark={selectedThemeIsDark}
         name="metadata.defaultBookerLayouts"
         title={t("bookerlayout_user_settings_title")}
         description={t("bookerlayout_user_settings_description")}
@@ -271,8 +263,7 @@ const AppearanceView = () => {
         type="submit"
         loading={mutation.isLoading}
         color="primary"
-        className="mt-8"
-        data-testid="update-theme-btn">
+        className="mt-8">
         {t("update")}
       </Button>
     </Form>

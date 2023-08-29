@@ -1,20 +1,18 @@
 import { Webhook as TbWebhook } from "lucide-react";
 import type { TFunction } from "next-i18next";
 import { Trans } from "next-i18next";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import type { EventTypeSetupProps, FormValues } from "pages/event-types/[type]";
 import { useMemo, useState, Suspense } from "react";
 import type { UseFormReturn } from "react-hook-form";
 
 import useLockedFieldsManager from "@calcom/features/ee/managed-event-types/hooks/useLockedFieldsManager";
-import { useOrgBranding } from "@calcom/features/ee/organizations/context/provider";
-import { EventTypeEmbedButton, EventTypeEmbedDialog } from "@calcom/features/embed/EventTypeEmbed";
 import Shell from "@calcom/features/shell/Shell";
 import { classNames } from "@calcom/lib";
 import { CAL_URL } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { HttpError } from "@calcom/lib/http-error";
-import { SchedulingType } from "@calcom/prisma/enums";
+import { SchedulingType, UserPermissionRole } from "@calcom/prisma/enums";
 import { trpc, TRPCClientError } from "@calcom/trpc/react";
 import {
   Button,
@@ -52,6 +50,7 @@ import {
   Loader,
 } from "@calcom/ui/components/icon";
 
+import { EmbedButton, EmbedDialog } from "@components/Embed";
 import type { AvailabilityOption } from "@components/eventtype/EventAvailabilityTab";
 
 type Props = {
@@ -86,24 +85,28 @@ function getNavigation(props: {
       href: `/event-types/${eventType.id}?tabName=setup`,
       icon: LinkIcon,
       info: `${duration} ${t("minute_timeUnit")}`, // TODO: Get this from props
+      roleAccess: [UserPermissionRole.USER, UserPermissionRole.ADMIN],
     },
     {
       name: "event_limit_tab_title",
       href: `/event-types/${eventType.id}?tabName=limits`,
       icon: Clock,
       info: `event_limit_tab_description`,
+      roleAccess: [UserPermissionRole.ADMIN],
     },
     {
       name: "event_advanced_tab_title",
       href: `/event-types/${eventType.id}?tabName=advanced`,
       icon: Sliders,
       info: `event_advanced_tab_description`,
+      roleAccess: [UserPermissionRole.ADMIN],
     },
     {
       name: "recurring",
       href: `/event-types/${eventType.id}?tabName=recurring`,
       icon: Repeat,
       info: `recurring_event_tab_description`,
+      roleAccess: [UserPermissionRole.ADMIN],
     },
     {
       name: "apps",
@@ -111,12 +114,14 @@ function getNavigation(props: {
       icon: Grid,
       //TODO: Handle proper translation with count handling
       info: `${installedAppsNumber} apps, ${enabledAppsNumber} ${t("active")}`,
+      roleAccess: [UserPermissionRole.ADMIN],
     },
     {
       name: "workflows",
       href: `/event-types/${eventType.id}?tabName=workflows`,
       icon: Zap,
       info: `${enabledWorkflowsNumber} ${t("active")}`,
+      roleAccess: [UserPermissionRole.ADMIN],
     },
   ];
 }
@@ -148,7 +153,7 @@ function EventTypeSingleLayout({
     onSuccess: async () => {
       await utils.viewer.eventTypes.invalidate();
       showToast(t("event_type_deleted_successfully"), "success");
-      router.push("/event-types");
+      await router.push("/event-types");
       setDeleteDialogOpen(false);
     },
     onError: (err) => {
@@ -195,6 +200,7 @@ function EventTypeSingleLayout({
               }`
             : eventType.scheduleName ?? `default_schedule_name`
           : eventType.scheduleName ?? `default_schedule_name`,
+      roleAccess: [UserPermissionRole.ADMIN],
     });
     // If there is a team put this navigation item within the tabs
     if (team) {
@@ -207,15 +213,19 @@ function EventTypeSingleLayout({
             ? ` - ${t("count_members", { count: formMethods.watch("children").length || 0 })}`
             : ""
         }`,
+        roleAccess: [UserPermissionRole.USER, UserPermissionRole.ADMIN],
       });
     }
-    const showWebhooks = !(isManagedEventType || isChildrenManagedEventType);
-    if (showWebhooks) {
+    if (isManagedEventType || isChildrenManagedEventType) {
+      // Removing apps and workflows for manageg event types by admins v1
+      navigation.splice(-2, 1);
+    } else {
       navigation.push({
         name: "webhooks",
         href: `/event-types/${eventType.id}?tabName=webhooks`,
         icon: TbWebhook,
         info: `${eventType.webhooks.filter((webhook) => webhook.active).length} ${t("active")}`,
+        roleAccess: [UserPermissionRole.ADMIN],
       });
     }
     return navigation;
@@ -232,11 +242,9 @@ function EventTypeSingleLayout({
     formMethods,
   ]);
 
-  const orgBranding = useOrgBranding();
-  const isOrgEvent = orgBranding?.fullDomain;
-  const permalink = `${orgBranding?.fullDomain ?? CAL_URL}/${
-    team ? `${!isOrgEvent ? "team/" : ""}${team.slug}` : eventType.users[0].username
-  }/${eventType.slug}`;
+  const permalink = `${CAL_URL}/${team ? `team/${team.slug}` : eventType.users[0].username}/${
+    eventType.slug
+  }`;
 
   const embedLink = `${team ? `team/${team.slug}` : eventType.users[0].username}/${eventType.slug}`;
   const isManagedEvent = eventType.schedulingType === SchedulingType.MANAGED ? "_managed" : "";
@@ -310,13 +318,12 @@ function EventTypeSingleLayout({
                     showToast("Link copied!", "success");
                   }}
                 />
-                <EventTypeEmbedButton
+                <EmbedButton
                   embedUrl={encodeURIComponent(embedLink)}
                   StartIcon={Code}
                   color="secondary"
                   variant="icon"
                   tooltip={t("embed")}
-                  eventId={eventType.id}
                 />
               </>
             )}
@@ -406,13 +413,13 @@ function EventTypeSingleLayout({
               className="primary-navigation"
               tabs={EventTypeTabs}
               sticky
-              linkShallow
+              linkProps={{ shallow: true }}
               itemClassname="items-start"
               iconClassName="md:mt-px"
             />
           </div>
           <div className="p-2 md:mx-0 md:p-0 xl:hidden">
-            <HorizontalTabs tabs={EventTypeTabs} linkShallow />
+            <HorizontalTabs tabs={EventTypeTabs} linkProps={{ shallow: true }} />
           </div>
           <div className="w-full ltr:mr-2 rtl:ml-2">
             <div
@@ -450,7 +457,7 @@ function EventTypeSingleLayout({
           </p>
         </ConfirmationDialogContent>
       </Dialog>
-      <EventTypeEmbedDialog />
+      <EmbedDialog />
     </Shell>
   );
 }

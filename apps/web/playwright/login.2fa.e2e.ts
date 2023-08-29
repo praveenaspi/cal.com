@@ -3,7 +3,6 @@ import { expect } from "@playwright/test";
 import { authenticator } from "otplib";
 
 import { symmetricDecrypt } from "@calcom/lib/crypto";
-import { totpAuthenticatorCheck } from "@calcom/lib/totp";
 
 import { test } from "./lib/fixtures";
 
@@ -37,6 +36,7 @@ test.describe("2FA Tests", async () => {
        */
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await fillOtp({ page, secret: "123456", noRetry: true });
+      await page.press('input[name="2fa6"]', "Enter");
       await expect(page.locator('[data-testid="error-submitting-code"]')).toBeVisible();
 
       await fillOtp({
@@ -44,9 +44,9 @@ test.describe("2FA Tests", async () => {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         secret: secret!,
       });
+      await page.press('input[name="2fa6"]', "Enter");
 
-      await page.waitForSelector(`[data-testid=two-factor-switch]`);
-      await expect(page.locator(`[data-testid=two-factor-switch]`).isChecked()).toBeTruthy();
+      await expect(page.locator(`[data-testid=two-factor-switch][data-state="checked"]`)).toBeVisible();
 
       return user;
     });
@@ -102,7 +102,7 @@ test.describe("2FA Tests", async () => {
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await fillOtp({ page, secret: secret! });
-
+      await page.click('[data-testid="enable-2fa"]');
       await expect(page.locator(`[data-testid=two-factor-switch][data-state="checked"]`)).toBeVisible();
 
       return user;
@@ -142,7 +142,7 @@ test.describe("2FA Tests", async () => {
 
 async function fillOtp({ page, secret, noRetry }: { page: Page; secret: string; noRetry?: boolean }) {
   let token = authenticator.generate(secret);
-  if (!noRetry && !totpAuthenticatorCheck(token, secret)) {
+  if (!noRetry && !authenticator.check(token, secret)) {
     console.log("Token expired, Renerating.");
     // Maybe token was just about to expire, try again just once more
     token = authenticator.generate(secret);

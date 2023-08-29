@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import { useState } from "react";
 
 import InviteLinkSettingsModal from "@calcom/ee/teams/components/InviteLinkSettingsModal";
@@ -40,7 +39,6 @@ import {
   X,
 } from "@calcom/ui/components/icon";
 
-import { useOrgBranding } from "../../organizations/context/provider";
 import { TeamRole } from "./TeamPill";
 
 interface Props {
@@ -53,24 +51,47 @@ interface Props {
 }
 
 export default function TeamListItem(props: Props) {
-  const searchParams = useSearchParams();
   const { t, i18n } = useLocale();
+
+  const router = useRouter();
   const utils = trpc.useContext();
   const team = props.team;
 
-  const showDialog = searchParams?.get("inviteModal") === "true";
+  const showDialog = router.query.inviteModal === "true";
   const [openMemberInvitationModal, setOpenMemberInvitationModal] = useState(showDialog);
   const [openInviteLinkSettingsModal, setOpenInviteLinkSettingsModal] = useState(false);
 
   const teamQuery = trpc.viewer.teams.get.useQuery({ teamId: team?.id });
-  const inviteMemberMutation = trpc.viewer.teams.inviteMember.useMutation();
+  const inviteMemberMutation = trpc.viewer.teams.inviteMember.useMutation({
+    async onSuccess(data) {
+      await utils.viewer.teams.get.invalidate();
+      setOpenMemberInvitationModal(false);
+      if (data.sendEmailInvitation) {
+        if (Array.isArray(data.usernameOrEmail)) {
+          showToast(
+            t("email_invite_team_bulk", {
+              userCount: data.usernameOrEmail.length,
+            }),
+            "success"
+          );
+        } else {
+          showToast(
+            t("email_invite_team", {
+              email: data.usernameOrEmail,
+            }),
+            "success"
+          );
+        }
+      }
+    },
+    onError: (error) => {
+      showToast(error.message, "error");
+    },
+  });
 
   const acceptOrLeaveMutation = trpc.viewer.teams.acceptOrLeave.useMutation({
     onSuccess: () => {
-      showToast(t("success"), "success");
-      utils.viewer.teams.get.invalidate();
       utils.viewer.teams.list.invalidate();
-      utils.viewer.teams.hasTeamPlan.invalidate();
       utils.viewer.teams.listInvites.invalidate();
     },
   });
@@ -84,7 +105,6 @@ export default function TeamListItem(props: Props) {
 
   const acceptInvite = () => acceptOrLeave(true);
   const declineInvite = () => acceptOrLeave(false);
-  const orgBranding = useOrgBranding();
 
   const isOwner = props.team.role === MembershipRole.OWNER;
   const isInvitee = !props.team.accepted;
@@ -104,11 +124,7 @@ export default function TeamListItem(props: Props) {
       <div className="ms-3 inline-block truncate">
         <span className="text-default text-sm font-bold">{team.name}</span>
         <span className="text-muted block text-xs">
-          {team.slug
-            ? orgBranding
-              ? `${orgBranding.fullDomain}/${team.slug}`
-              : `${process.env.NEXT_PUBLIC_WEBSITE_URL}/team/${team.slug}`
-            : "Unpublished team"}
+          {team.slug ? `${process.env.NEXT_PUBLIC_WEBSITE_URL}/team/${team.slug}` : "Unpublished team"}
         </span>
       </div>
     </div>
@@ -123,44 +139,14 @@ export default function TeamListItem(props: Props) {
         onExit={() => {
           setOpenMemberInvitationModal(false);
         }}
-        isLoading={inviteMemberMutation.isLoading}
-        onSubmit={(values, resetFields) => {
-          inviteMemberMutation.mutate(
-            {
-              teamId: team.id,
-              language: i18n.language,
-              role: values.role,
-              usernameOrEmail: values.emailOrUsername,
-              sendEmailInvitation: values.sendInviteEmail,
-            },
-            {
-              onSuccess: async (data) => {
-                await utils.viewer.teams.get.invalidate();
-                setOpenMemberInvitationModal(false);
-                if (data.sendEmailInvitation) {
-                  if (Array.isArray(data.usernameOrEmail)) {
-                    showToast(
-                      t("email_invite_team_bulk", {
-                        userCount: data.usernameOrEmail.length,
-                      }),
-                      "success"
-                    );
-                    resetFields();
-                  } else {
-                    showToast(
-                      t("email_invite_team", {
-                        email: data.usernameOrEmail,
-                      }),
-                      "success"
-                    );
-                  }
-                }
-              },
-              onError: (error) => {
-                showToast(error.message, "error");
-              },
-            }
-          );
+        onSubmit={(values) => {
+          inviteMemberMutation.mutate({
+            teamId: team.id,
+            language: i18n.language,
+            role: values.role,
+            usernameOrEmail: values.emailOrUsername,
+            sendEmailInvitation: values.sendInviteEmail,
+          });
         }}
         onSettingsOpen={() => {
           setOpenMemberInvitationModal(false);
@@ -203,7 +189,7 @@ export default function TeamListItem(props: Props) {
                   color="secondary"
                   data-testid={`accept-invitation-${team.id}`}
                   StartIcon={Check}
-                  className="me-2 ms-2"
+                  className="ms-2 me-2"
                   onClick={acceptInvite}>
                   {t("accept")}
                 </Button>
@@ -238,11 +224,7 @@ export default function TeamListItem(props: Props) {
                       color="secondary"
                       onClick={() => {
                         navigator.clipboard.writeText(
-                          `${
-                            orgBranding
-                              ? `${orgBranding.fullDomain}`
-                              : process.env.NEXT_PUBLIC_WEBSITE_URL + "/team"
-                          }/${team.slug}`
+                          process.env.NEXT_PUBLIC_WEBSITE_URL + "/team/" + team.slug
                         );
                         showToast(t("link_copied"), "success");
                       }}
@@ -278,28 +260,22 @@ export default function TeamListItem(props: Props) {
                         <DropdownItem
                           type="button"
                           target="_blank"
-                          href={`${
-                            orgBranding
-                              ? `${orgBranding.fullDomain}`
-                              : `${process.env.NEXT_PUBLIC_WEBSITE_URL}/team`
-                          }/${team.slug}`}
+                          href={`${process.env.NEXT_PUBLIC_WEBSITE_URL}/team/${team.slug}`}
                           StartIcon={ExternalLink}>
                           {t("preview_team") as string}
                         </DropdownItem>
                       </DropdownMenuItem>
                     )}
-                    {isAdmin && (
-                      <DropdownMenuItem>
-                        <DropdownItem
-                          type="button"
-                          onClick={() => {
-                            setOpenMemberInvitationModal(true);
-                          }}
-                          StartIcon={Send}>
-                          {t("invite_team_member") as string}
-                        </DropdownItem>
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem>
+                      <DropdownItem
+                        type="button"
+                        onClick={() => {
+                          setOpenMemberInvitationModal(true);
+                        }}
+                        StartIcon={Send}>
+                        {t("invite_team_member") as string}
+                      </DropdownItem>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {isOwner && (
                       <DropdownMenuItem>

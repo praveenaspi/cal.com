@@ -12,7 +12,7 @@ const libraries = [
   },
 ];
 
-const promises = libraries.map(async (lib) => {
+libraries.forEach(async (lib) => {
   await build({
     build: {
       outDir: `./dist/${lib.fileName}`,
@@ -29,4 +29,3 @@ const promises = libraries.map(async (lib) => {
     },
   });
 });
-await Promise.all(promises);

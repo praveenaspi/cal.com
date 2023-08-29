@@ -53,7 +53,6 @@ export type CalendarPrivateActions = {
 
 export type CalendarAvailableTimeslots = {
   // Key is the date in YYYY-MM-DD format
-  // start and end are ISOstring
   [key: string]: TimeRange[];
 };
 
@@ -121,6 +120,6 @@ export type CalendarState = {
   hideHeader?: boolean;
 };
 
-export type CalendarComponentProps = CalendarPublicActions & CalendarState & { isLoading?: boolean };
+export type CalendarComponentProps = CalendarPublicActions & CalendarState;
 
 export type CalendarStoreProps = CalendarComponentProps & CalendarPrivateActions;

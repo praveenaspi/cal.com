@@ -1,7 +1,6 @@
 const appStore = {
   // example: () => import("./example"),
   applecalendar: () => import("./applecalendar"),
-  aroundvideo: () => import("./around"),
   caldavcalendar: () => import("./caldavcalendar"),
   closecom: () => import("./closecom"),
   dailyvideo: () => import("./dailyvideo"),
@@ -14,7 +13,6 @@ const appStore = {
   office365calendar: () => import("./office365calendar"),
   office365video: () => import("./office365video"),
   plausible: () => import("./plausible"),
-  paypal: () => import("./paypal"),
   salesforce: () => import("./salesforce"),
   zohocrm: () => import("./zohocrm"),
   sendgrid: () => import("./sendgrid"),
@@ -32,7 +30,6 @@ const appStore = {
   facetime: () => import("./facetime"),
   sylapsvideo: () => import("./sylapsvideo"),
   "zoho-bigin": () => import("./zoho-bigin"),
-  basecamp3: () => import("./basecamp3"),
   telegramvideo: () => import("./telegram"),
 };
 

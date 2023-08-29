@@ -1,12 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { authenticator } from "otplib";
 
 import { ErrorCode } from "@calcom/features/auth/lib/ErrorCode";
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import { verifyPassword } from "@calcom/features/auth/lib/verifyPassword";
 import { symmetricDecrypt } from "@calcom/lib/crypto";
-import { totpAuthenticatorCheck } from "@calcom/lib/totp";
 import prisma from "@calcom/prisma";
-import { IdentityProvider } from "@calcom/prisma/client";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -29,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ message: "Not authenticated" });
   }
 
-  if (!user.password && user.identityProvider === IdentityProvider.CAL) {
+  if (!user.password) {
     return res.status(400).json({ error: ErrorCode.UserMissingPassword });
   }
 
@@ -37,11 +36,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.json({ message: "Two factor disabled" });
   }
 
-  if (user.password && user.identityProvider === IdentityProvider.CAL) {
-    const isCorrectPassword = await verifyPassword(req.body.password, user.password);
-    if (!isCorrectPassword) {
-      return res.status(400).json({ error: ErrorCode.IncorrectPassword });
-    }
+  const isCorrectPassword = await verifyPassword(req.body.password, user.password);
+  if (!isCorrectPassword) {
+    return res.status(400).json({ error: ErrorCode.IncorrectPassword });
   }
   // if user has 2fa
   if (user.twoFactorEnabled) {
@@ -69,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // If user has 2fa enabled, check if body.code is correct
-    const isValidToken = totpAuthenticatorCheck(req.body.code, secret);
+    const isValidToken = authenticator.check(req.body.code, secret);
     if (!isValidToken) {
       return res.status(400).json({ error: ErrorCode.IncorrectTwoFactorCode });
 

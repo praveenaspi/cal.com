@@ -58,20 +58,7 @@ export default class GoogleCalendarService implements Calendar {
         });
         myGoogleAuth.setCredentials(googleCredentials);
       } catch (err) {
-        let message;
-        if (err instanceof Error) message = err.message;
-        else message = String(err);
-        // if not invalid_grant, default behaviour (which admittedly isn't great)
-        if (message !== "invalid_grant") return myGoogleAuth;
-        // when the error is invalid grant, it's unrecoverable and the credential marked invalid.
-        // TODO: Evaluate bubbling up and handling this in the CalendarManager. IMO this should be done
-        //       but this is a bigger refactor.
-        await prisma.credential.update({
-          where: { id: credential.id },
-          data: {
-            invalid: true,
-          },
-        });
+        this.log.error("Error refreshing google token", err);
       }
       return myGoogleAuth;
     };
@@ -352,9 +339,7 @@ export default class GoogleCalendarService implements Calendar {
 
       (selectedCalendarIds.length === 0
         ? calendar.calendarList
-            .list({
-              fields: "items(id)",
-            })
+            .list()
             .then((cals) => cals.data.items?.map((cal) => cal.id).filter(Boolean) || [])
         : Promise.resolve(selectedCalendarIds)
       )
@@ -380,6 +365,7 @@ export default class GoogleCalendarService implements Calendar {
                 });
                 return c;
               }, [] as Prisma.PromiseReturnType<CalendarService["getAvailability"]>);
+
               resolve(result);
             }
           );
@@ -401,9 +387,7 @@ export default class GoogleCalendarService implements Calendar {
       });
 
       calendar.calendarList
-        .list({
-          fields: "items(id,summary,primary,accessRole)",
-        })
+        .list()
         .then((cals) => {
           resolve(
             cals.data.items?.map((cal) => {
@@ -412,7 +396,7 @@ export default class GoogleCalendarService implements Calendar {
                 integration: this.integrationName,
                 name: cal.summary ?? "No name",
                 primary: cal.primary ?? false,
-                readOnly: !(cal.accessRole === "writer" || cal.accessRole === "owner") && true,
+                readOnly: !(cal.accessRole === "reader" || cal.accessRole === "owner") && true,
                 email: cal.id ?? "",
               };
               return calendar;

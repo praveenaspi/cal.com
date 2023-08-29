@@ -82,17 +82,14 @@ export const AppForm = ({
       label: "Category of App",
       name: "category",
       type: "select",
-
-      // TODO: Refactor and reuse getAppCategories or type as Record<AppCategories,> to enforce consistency
       options: [
-        // Manually sorted alphabetically
-        { label: "Analytics", value: "analytics" },
-        { label: "Automation", value: "automation" },
         { label: "Calendar", value: "calendar" },
-        { label: "Conferencing", value: "conferencing" },
-        { label: "CRM", value: "crm" },
-        { label: "Messaging", value: "messaging" },
+        { label: "Video", value: "video" },
         { label: "Payment", value: "payment" },
+        { label: "Messaging", value: "messaging" },
+        { label: "Web3", value: "web3" },
+        { label: "Automation", value: "automation" },
+        { label: "Analytics", value: "analytics" },
         { label: "Other", value: "other" },
       ],
       defaultValue: "",

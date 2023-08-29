@@ -1,8 +1,6 @@
 import type { App_RoutingForms_Form } from "@prisma/client";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getSession } from "next-auth/react";
 
-import { entityPrismaWhereClause, canEditEntity } from "@calcom/lib/entityPermissionUtils";
 import prisma from "@calcom/prisma";
 
 import { getSerializableForm } from "../../lib/getSerializableForm";
@@ -57,7 +55,6 @@ async function* getResponses(
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { args } = req.query;
-
   if (!args) {
     throw new Error("args must be set");
   }
@@ -66,37 +63,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     throw new Error("formId must be provided");
   }
 
-  const session = await getSession({ req });
-
-  if (!session) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const { user } = session;
-
   const form = await prisma.app_RoutingForms_Form.findFirst({
     where: {
       id: formId,
-      ...entityPrismaWhereClause({ userId: user.id }),
-    },
-    include: {
-      team: {
-        select: {
-          members: true,
-        },
-      },
     },
   });
 
   if (!form) {
-    return res.status(404).json({ message: "Form not found or unauthorized" });
+    throw new Error("Form not found");
   }
-
-  if (!canEditEntity(form, user.id)) {
-    return res.status(404).json({ message: "Form not found or unauthorized" });
-  }
-
-  const serializableForm = await getSerializableForm({ form, withDeletedFields: true });
+  const serializableForm = await getSerializableForm(form, true);
   res.setHeader("Content-Type", "text/csv; charset=UTF-8");
   res.setHeader(
     "Content-Disposition",

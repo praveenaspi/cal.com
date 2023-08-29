@@ -1,7 +1,6 @@
 import type { Page, Frame } from "@playwright/test";
 import { test, expect } from "@playwright/test";
 
-// eslint-disable-next-line no-restricted-imports
 import prisma from "@calcom/prisma";
 
 export function todo(title: string) {
@@ -45,33 +44,30 @@ export const getEmbedIframe = async ({
   pathname: string;
 }) => {
   // We can't seem to access page.frame till contentWindow is available. So wait for that.
-  const iframeReady = await page.evaluate(
-    (hardTimeout) => {
-      return new Promise((resolve) => {
-        const interval = setInterval(() => {
-          const iframe = document.querySelector<HTMLIFrameElement>(".cal-embed");
+  const iframeReady = await page.evaluate(() => {
+    return new Promise((resolve) => {
+      const interval = setInterval(() => {
+        const iframe = document.querySelector<HTMLIFrameElement>(".cal-embed");
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        if (iframe && iframe.contentWindow && window.iframeReady) {
+          clearInterval(interval);
+          resolve(true);
+        } else {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
-          if (iframe && iframe.contentWindow && window.iframeReady) {
-            clearInterval(interval);
-            resolve(true);
-          } else {
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            console.log("Iframe Status:", !!iframe, !!iframe?.contentWindow, window.iframeReady);
-          }
-        }, 500);
+          console.log("Iframe Status:", !!iframe, !!iframe?.contentWindow, window.iframeReady);
+        }
+      }, 500);
 
-        // A hard timeout if iframe isn't ready in that time. Avoids infinite wait
-        setTimeout(() => {
-          clearInterval(interval);
-          resolve(false);
-          // This is the time embed-iframe.ts loads in the iframe and fires atleast one event. Also, it is a load of entire React Application so it can sometime take more time even on CI.
-        }, hardTimeout);
-      });
-    },
-    !process.env.CI ? 150000 : 15000
-  );
+      // A hard timeout if iframe isn't ready in that time. Avoids infinite wait
+      setTimeout(() => {
+        clearInterval(interval);
+        resolve(false);
+        // This is the time embed-iframe.ts loads in the iframe and fires atleast one event. Also, it is a load of entire React Application so it can sometime take more time even on CI.
+      }, 15000);
+    });
+  });
   if (!iframeReady) {
     return null;
   }
@@ -107,14 +103,7 @@ export async function bookFirstEvent(username: string, frame: Frame, page: Page)
   await frame.click('[data-testid="event-type-link"]');
   await frame.waitForURL((url) => {
     // Wait for reaching the event page
-    const matches = url.pathname.match(new RegExp(`/${username}/(.+)$`));
-    if (!matches || !matches[1]) {
-      return false;
-    }
-    if (matches[1] === "embed") {
-      return false;
-    }
-    return true;
+    return !!url.pathname.match(new RegExp(`/${username}/.+$`));
   });
 
   // Let current month dates fully render.
@@ -123,9 +112,11 @@ export async function bookFirstEvent(username: string, frame: Frame, page: Page)
   // It would also allow correct snapshot to be taken for current month.
   await frame.waitForTimeout(1000);
   // expect(await page.screenshot()).toMatchSnapshot("availability-page-1.png");
-  // Remove /embed from the end if present.
-  const eventSlug = new URL(frame.url()).pathname.replace(/\/embed$/, "");
+  const eventSlug = new URL(frame.url()).pathname;
   await selectFirstAvailableTimeSlotNextMonth(frame, page);
+  await frame.waitForURL((url) => {
+    return url.pathname.includes(`/${username}/book`);
+  });
   // expect(await page.screenshot()).toMatchSnapshot("booking-page.png");
   // --- fill form
   await frame.fill('[name="name"]', "Embed User");
@@ -139,11 +130,20 @@ export async function bookFirstEvent(username: string, frame: Frame, page: Page)
   await expect(frame.locator("[data-testid=success-page]")).toBeVisible();
   // expect(await page.screenshot()).toMatchSnapshot("success-page.png");
 
+  //NOTE: frame.click('body') won't work here. Because the way it works, it clicks on the center of the body tag which is an element inside the popup view and that won't close the popup
+  await frame.evaluate(() => {
+    // Closes popup - if it is a popup. If not a popup, it will just do nothing
+    document.body.click();
+  });
+
   return booking;
 }
 
 export async function rescheduleEvent(username: string, frame: Frame, page: Page) {
   await selectFirstAvailableTimeSlotNextMonth(frame, page);
+  await frame.waitForURL((url: { pathname: string | string[] }) => {
+    return url.pathname.includes(`/${username}/book`);
+  });
   // --- fill form
   await frame.press('[name="email"]', "Enter");
   await frame.click("[data-testid=confirm-reschedule-button]");
@@ -153,11 +153,4 @@ export async function rescheduleEvent(username: string, frame: Frame, page: Page
   // Make sure we're navigated to the success page
   await expect(frame.locator("[data-testid=success-page]")).toBeVisible();
   return booking;
-}
-
-export async function installAppleCalendar(page: Page) {
-  await page.goto("/apps/categories/calendar");
-  await page.click('[data-testid="app-store-app-card-apple-calendar"]');
-  await page.waitForURL("/apps/apple-calendar");
-  await page.click('[data-testid="install-app-button"]');
 }

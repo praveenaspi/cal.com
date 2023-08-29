@@ -10,15 +10,14 @@ export const getTotalBookingDuration = async ({
   endDate: Date;
 }) => {
   // Aggregates the total booking time for a given event in a given time period
-  // FIXME: bookings that overlap on one side will never be counted
-  const [totalBookingTime] = await prisma.$queryRaw<[{ totalMinutes: number | null }]>`
+  const [totalBookingTime] = (await prisma.$queryRaw`
     SELECT SUM(EXTRACT(EPOCH FROM ("endTime" - "startTime")) / 60) as "totalMinutes"
     FROM "Booking"
     WHERE "status" = 'accepted'
-      AND "eventTypeId" = ${eventId}
+      AND "id" = ${eventId}
       AND "startTime" >= ${startDate}
       AND "endTime" <= ${endDate};
-  `;
+  `) as { totalMinutes: number }[];
 
-  return totalBookingTime.totalMinutes ?? 0;
+  return totalBookingTime.totalMinutes;
 };

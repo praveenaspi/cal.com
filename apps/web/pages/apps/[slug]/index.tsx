@@ -9,7 +9,6 @@ import { z } from "zod";
 
 import { getAppWithMetadata } from "@calcom/app-store/_appRegistry";
 import { getAppAssetFullPath } from "@calcom/app-store/getAppAssetFullPath";
-import { IS_PRODUCTION } from "@calcom/lib/constants";
 import prisma from "@calcom/prisma";
 
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
@@ -39,7 +38,7 @@ const sourceSchema = z.object({
 function SingleAppPage(props: inferSSRProps<typeof getStaticProps>) {
   // If it's not production environment, it would be a better idea to inform that the App is disabled.
   if (props.isAppDisabled) {
-    if (!IS_PRODUCTION) {
+    if (process.env.NODE_ENV !== "production") {
       // TODO: Improve disabled App UI. This is just a placeholder.
       return (
         <div className="p-2">
@@ -78,7 +77,6 @@ function SingleAppPage(props: inferSSRProps<typeof getStaticProps>) {
       descriptionItems={source.data?.items as string[] | undefined}
       isTemplate={data.isTemplate}
       dependencies={data.dependencies}
-      concurrentMeetings={data.concurrentMeetings}
       //   tos="https://zoom.us/terms"
       //   privacy="https://zoom.us/privacy"
       body={
@@ -124,7 +122,7 @@ export const getStaticProps = async (ctx: GetStaticPropsContext) => {
   const isAppAvailableInFileSystem = appMeta;
   const isAppDisabled = isAppAvailableInFileSystem && (!appFromDb || !appFromDb.enabled);
 
-  if (!IS_PRODUCTION && isAppDisabled) {
+  if (process.env.NODE_ENV !== "production" && isAppDisabled) {
     return {
       props: {
         isAppDisabled: true as const,

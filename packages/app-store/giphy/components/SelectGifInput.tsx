@@ -9,7 +9,6 @@ import { SearchDialog } from "./SearchDialog";
 interface ISelectGifInput {
   defaultValue?: string | null;
   onChange: (url: string) => void;
-  disabled?: boolean;
 }
 export default function SelectGifInput(props: ISelectGifInput) {
   const { t } = useLocale();
@@ -25,21 +24,11 @@ export default function SelectGifInput(props: ISelectGifInput) {
       )}
       <div className="flex">
         {selectedGif ? (
-          <Button
-            color="minimal"
-            type="button"
-            StartIcon={Edit}
-            onClick={() => setShowDialog(true)}
-            disabled={props.disabled}>
+          <Button color="minimal" type="button" StartIcon={Edit} onClick={() => setShowDialog(true)}>
             Change
           </Button>
         ) : (
-          <Button
-            color="minimal"
-            type="button"
-            StartIcon={Plus}
-            onClick={() => setShowDialog(true)}
-            disabled={props.disabled}>
+          <Button color="minimal" type="button" StartIcon={Plus} onClick={() => setShowDialog(true)}>
             Add from Giphy
           </Button>
         )}
@@ -52,8 +41,7 @@ export default function SelectGifInput(props: ISelectGifInput) {
             onClick={() => {
               setSelectedGif("");
               props.onChange("");
-            }}
-            disabled={props.disabled}>
+            }}>
             {t("remove")}
           </Button>
         )}

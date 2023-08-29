@@ -23,17 +23,9 @@ const getVideoAdapters = async (withCredentials: CredentialPayload[]): Promise<V
 
   for (const cred of withCredentials) {
     const appName = cred.type.split("_").join(""); // Transform `zoom_video` to `zoomvideo`;
-    const appImportFn = appStore[appName as keyof typeof appStore];
+    const app = await appStore[appName as keyof typeof appStore]();
 
-    // Static Link Video Apps don't exist in packages/app-store/index.ts(it's manually maintained at the moment) and they aren't needed there anyway.
-    const app = appImportFn ? await appImportFn() : null;
-
-    if (!app) {
-      log.error(`Couldn't get adapter for ${appName}`);
-      continue;
-    }
-
-    if ("lib" in app && "VideoApiAdapter" in app.lib) {
+    if (app && "lib" in app && "VideoApiAdapter" in app.lib) {
       const makeVideoApiAdapter = app.lib.VideoApiAdapter as VideoApiAdapterFactory;
       const videoAdapter = makeVideoApiAdapter(cred);
       videoAdapters.push(videoAdapter);
@@ -67,7 +59,6 @@ const createMeeting = async (credential: CredentialWithAppName, calEvent: Calend
     originalEvent: CalendarEvent;
     success: boolean;
     createdEvent: VideoCallData | undefined;
-    credentialId: number;
   } = {
     appName: credential.appName,
     type: credential.type,
@@ -75,7 +66,6 @@ const createMeeting = async (credential: CredentialWithAppName, calEvent: Calend
     originalEvent: calEvent,
     success: false,
     createdEvent: undefined,
-    credentialId: credential.id,
   };
   try {
     // Check to see if video app is enabled
@@ -176,7 +166,6 @@ const createMeetingWithCalVideo = async (calEvent: CalendarEvent) => {
       appId: "daily-video",
       type: "daily_video",
       userId: null,
-      teamId: null,
       key: dailyAppKeys,
       invalid: false,
     },
@@ -200,7 +189,6 @@ const getRecordingsOfCalVideoByRoomName = async (
       appId: "daily-video",
       type: "daily_video",
       userId: null,
-      teamId: null,
       key: dailyAppKeys,
       invalid: false,
     },
@@ -222,7 +210,6 @@ const getDownloadLinkOfCalVideoByRecordingId = async (recordingId: string) => {
       appId: "daily-video",
       type: "daily_video",
       userId: null,
-      teamId: null,
       key: dailyAppKeys,
       invalid: false,
     },

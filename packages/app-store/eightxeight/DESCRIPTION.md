@@ -5,7 +5,6 @@ items:
 ---
 
 {DESCRIPTION}
-
 - High definition video conferencing on any device for up to 500 participants
 - Rich content sharing and collaboration
 - Enterprise grade reliability and availability for a business of five or 50,000

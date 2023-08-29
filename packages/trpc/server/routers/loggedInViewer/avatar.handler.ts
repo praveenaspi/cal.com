@@ -8,6 +8,6 @@ type AvatarOptions = {
 
 export const avatarHandler = async ({ ctx }: AvatarOptions) => {
   return {
-    avatar: ctx.user.avatar,
+    avatar: ctx.user.rawAvatar,
   };
 };

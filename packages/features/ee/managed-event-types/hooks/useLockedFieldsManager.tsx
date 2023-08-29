@@ -1,4 +1,3 @@
-// eslint-disable-next-line no-restricted-imports
 import { get } from "lodash";
 import React from "react";
 import type z from "zod";
@@ -9,9 +8,9 @@ import type { _EventTypeModel } from "@calcom/prisma/zod/eventtype";
 import { Tooltip } from "@calcom/ui";
 import { Lock } from "@calcom/ui/components/icon";
 
-export const LockedIndicator = (label: string) => (
+const Indicator = (label: string) => (
   <Tooltip content={<>{label}</>}>
-    <div className="bg -mt-0.5 ml-1 inline-flex h-4 w-4 rounded-sm p-0.5">
+    <div className="bg ml-1 -mt-0.5 inline-flex h-4 w-4 rounded-sm p-0.5">
       <Lock className="text-subtle hover:text-muted h-3 w-3" />
     </div>
   </Tooltip>
@@ -40,7 +39,7 @@ const useLockedFieldsManager = (
     } else {
       locked = locked && unlockedFields[fieldName as keyof Omit<Prisma.EventTypeSelect, "id">] === undefined;
     }
-    return locked && LockedIndicator(isManagedEventType ? adminLabel : memberLabel);
+    return locked && Indicator(isManagedEventType ? adminLabel : memberLabel);
   };
 
   const shouldLockDisableProps = (fieldName: string) => {

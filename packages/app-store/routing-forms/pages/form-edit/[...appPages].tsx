@@ -1,7 +1,6 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useEffect, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
-import { useWatch } from "react-hook-form";
 import { Controller, useFieldArray } from "react-hook-form";
 import { v4 as uuidv4 } from "uuid";
 
@@ -66,6 +65,7 @@ function Field({
   hookForm,
   hookFieldNamespace,
   deleteField,
+  fieldIndex,
   moveUp,
   moveDown,
   appUrl,
@@ -145,17 +145,6 @@ function Field({
         .join("\n")
     );
   };
-
-  const label = useWatch({
-    control: hookForm.control,
-    name: `${hookFieldNamespace}.label`,
-  });
-
-  const identifier = useWatch({
-    control: hookForm.control,
-    name: `${hookFieldNamespace}.identifier`,
-  });
-
   return (
     <div
       data-testid="field"
@@ -171,7 +160,6 @@ function Field({
         <div className="w-full">
           <div className="mb-6 w-full">
             <TextField
-              data-testid={`${hookFieldNamespace}.label`}
               disabled={!!router}
               label="Label"
               className="flex-grow"
@@ -180,7 +168,7 @@ function Field({
                * This is a bit of a hack to make sure that for routerField, label is shown from there.
                * For other fields, value property is used because it exists and would take precedence
                */
-              defaultValue={label || routerField?.label || ""}
+              defaultValue={routerField?.label}
               required
               {...hookForm.register(`${hookFieldNamespace}.label`)}
             />
@@ -195,7 +183,10 @@ function Field({
               //This change has the same effects that already existed in relation to this field,
               // but written in a different way.
               // The identifier field will have the same value as the label field until it is changed
-              value={identifier || routerField?.identifier || label || routerField?.label || ""}
+              defaultValue={
+                hookForm.watch(`${hookFieldNamespace}.identifier`) ||
+                hookForm.watch(`${hookFieldNamespace}.label`)
+              }
               onChange={(e) => {
                 hookForm.setValue(`${hookFieldNamespace}.identifier`, e.target.value);
               }}
@@ -325,7 +316,7 @@ const FormEdit = ({
     name: fieldsNamespace,
   });
 
-  const [animationRef] = useAutoAnimate<HTMLDivElement>();
+  // const [animationRef] = useAutoAnimate<HTMLDivElement>();
 
   const addField = () => {
     appendHookFormField({
@@ -345,7 +336,7 @@ const FormEdit = ({
   return hookFormFields.length ? (
     <div className="flex flex-col-reverse lg:flex-row">
       <div className="w-full ltr:mr-2 rtl:ml-2">
-        <div ref={animationRef} className="flex w-full flex-col rounded-md">
+        <div className="flex w-full flex-col rounded-md">
           {hookFormFields.map((field, key) => {
             return (
               <Field

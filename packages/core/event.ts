@@ -7,7 +7,6 @@ export type EventNameObjectType = {
   attendeeName: string;
   eventType: string;
   eventName?: string | null;
-  teamName?: string | null;
   host: string;
   location?: string;
   bookingFields?: Prisma.JsonObject;
@@ -18,7 +17,7 @@ export function getEventName(eventNameObj: EventNameObjectType, forAttendeeView 
   if (!eventNameObj.eventName)
     return eventNameObj.t("event_between_users", {
       eventName: eventNameObj.eventType,
-      host: eventNameObj.teamName || eventNameObj.host,
+      host: eventNameObj.host,
       attendeeName: eventNameObj.attendeeName,
       interpolation: {
         escapeValue: false,

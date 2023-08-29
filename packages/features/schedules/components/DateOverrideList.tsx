@@ -23,25 +23,19 @@ const useSettings = () => {
 const DateOverrideList = ({
   items,
   remove,
-  replace,
+  update,
   workingHours,
   excludedDates = [],
 }: {
   remove: UseFieldArrayRemove;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  replace: any;
+  update: any;
   items: { ranges: TimeRange[]; id: string }[];
   workingHours: WorkingHours[];
   excludedDates?: string[];
 }) => {
   const { t, i18n } = useLocale();
   const { hour12 } = useSettings();
-
-  const unsortedFieldArrayMap = items.reduce(
-    (map: { [id: string]: number }, { id }, index) => ({ ...map, [id]: index }),
-    {}
-  );
-
   if (!items.length) {
     return <></>;
   }
@@ -60,7 +54,7 @@ const DateOverrideList = ({
 
   return (
     <ul className="border-subtle rounded border" data-testid="date-overrides-list">
-      {items.sort(sortByDate).map((item) => (
+      {items.sort(sortByDate).map((item, index) => (
         <li key={item.id} className="border-subtle flex justify-between border-b px-5 py-4 last:border-b-0">
           <div>
             <h3 className="text-emphasis text-sm">
@@ -68,7 +62,6 @@ const DateOverrideList = ({
                 weekday: "short",
                 month: "long",
                 day: "numeric",
-                timeZone: "UTC",
               }).format(item.ranges[0].start)}
             </h3>
             {item.ranges[0].start.valueOf() - item.ranges[0].end.valueOf() === 0 ? (
@@ -87,9 +80,9 @@ const DateOverrideList = ({
               workingHours={workingHours}
               value={item.ranges}
               onChange={(ranges) => {
-                // update has very weird side-effects with sorting.
-                replace([...items.filter((currentItem) => currentItem.id !== item.id), { ranges }]);
-                delete unsortedFieldArrayMap[item.id];
+                update(index, {
+                  ranges,
+                });
               }}
               Trigger={
                 <DialogTrigger asChild>
@@ -109,7 +102,7 @@ const DateOverrideList = ({
                 color="destructive"
                 variant="icon"
                 StartIcon={Trash2}
-                onClick={() => remove(unsortedFieldArrayMap[item.id])}
+                onClick={() => remove(index)}
               />
             </Tooltip>
           </div>

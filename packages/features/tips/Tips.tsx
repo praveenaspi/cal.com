@@ -1,4 +1,5 @@
-import { useState, memo } from "react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { useState } from "react";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { localStorage } from "@calcom/lib/webstorage";
@@ -97,7 +98,9 @@ export const tips = [
 
 const reversedTips = tips.slice(0).reverse();
 
-function Tips() {
+export default function Tips() {
+  // const [animationRef] = useAutoAnimate<HTMLDivElement>();
+
   const { t } = useLocale();
 
   const [list, setList] = useState<typeof tips>(() => {
@@ -135,7 +138,7 @@ function Tips() {
   const baseOriginalList = list.slice(0).reverse();
   return (
     <div
-      className="hidden pb-4 pt-8 lg:grid"
+      className="hidden pt-8 pb-4 lg:grid"
       /* ref={animationRef} */
       style={{
         gridTemplateColumns: "1fr",
@@ -172,5 +175,3 @@ function Tips() {
     </div>
   );
 }
-
-export default memo(Tips);

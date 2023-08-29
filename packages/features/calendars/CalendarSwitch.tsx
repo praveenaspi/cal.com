@@ -47,11 +47,12 @@ const CalendarSwitch = (props: ICalendarSwitchProps) => {
           throw new Error("Something went wrong");
         }
       } else {
-        const res = await fetch("/api/availability/calendar?" + new URLSearchParams(body), {
+        const res = await fetch("/api/availability/calendar", {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify(body),
         });
 
         if (!res.ok) {

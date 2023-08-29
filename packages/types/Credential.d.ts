@@ -11,7 +11,6 @@ export type CredentialPayload = Prisma.CredentialGetPayload<{
     appId: true;
     type: true;
     userId: true;
-    teamId: true;
     key: true;
     invalid: true;
   };

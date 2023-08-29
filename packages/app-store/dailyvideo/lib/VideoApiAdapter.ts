@@ -30,6 +30,7 @@ const dailyReturnTypeSchema = z.object({
     enable_chat: z.boolean(),
     enable_knocking: z.boolean(),
     enable_prejoin_ui: z.boolean(),
+    enable_new_call_ui: z.boolean(),
   }),
 });
 
@@ -56,13 +57,12 @@ const meetingTokenSchema = z.object({
 
 /** @deprecated use metadata on index file */
 export const FAKE_DAILY_CREDENTIAL: CredentialPayload & { invalid: boolean } = {
-  id: 0,
+  id: +new Date().getTime(),
   type: "daily_video",
   key: { apikey: process.env.DAILY_API_KEY },
-  userId: 0,
+  userId: +new Date().getTime(),
   appId: "daily-video",
   invalid: false,
-  teamId: null,
 };
 
 export const fetcher = async (endpoint: string, init?: RequestInit | undefined) => {
@@ -123,6 +123,7 @@ const DailyVideoApiAdapter = (): VideoApiAdapter => {
       return {
         privacy: "public",
         properties: {
+          enable_new_call_ui: true,
           enable_prejoin_ui: true,
           enable_knocking: true,
           enable_screenshare: true,
@@ -135,6 +136,7 @@ const DailyVideoApiAdapter = (): VideoApiAdapter => {
     return {
       privacy: "public",
       properties: {
+        enable_new_call_ui: true,
         enable_prejoin_ui: true,
         enable_knocking: true,
         enable_screenshare: true,

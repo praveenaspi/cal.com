@@ -23,7 +23,6 @@ export const telemetryEventTypes = {
     pageView: "website_page_view",
   },
   slugReplacementAction: "slug_replacement_action",
-  org_created: "org_created",
 };
 
 export function collectPageParameters(

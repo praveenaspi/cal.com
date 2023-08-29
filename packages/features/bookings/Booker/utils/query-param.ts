@@ -2,12 +2,7 @@ export const updateQueryParam = (param: string, value: string | number) => {
   if (typeof window === "undefined") return;
 
   const url = new URL(window.location.href);
-  if (value === "" || value === "null") {
-    url.searchParams.delete(param);
-  } else {
-    url.searchParams.set(param, `${value}`);
-  }
-
+  url.searchParams.set(param, `${value}`);
   window.history.pushState({}, "", url.href);
 };
 

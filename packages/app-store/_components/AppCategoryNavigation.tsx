@@ -1,4 +1,4 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useMemo } from "react";
 
 import { classNames as cs } from "@calcom/lib";
@@ -27,18 +27,23 @@ const AppCategoryNavigation = ({
   };
   useQueryParam?: boolean;
 }) => {
-  const [animationRef] = useAutoAnimate<HTMLDivElement>();
+  // const [animationRef] = useAutoAnimate<HTMLDivElement>();
   const appCategories = useMemo(() => getAppCategories(baseURL, useQueryParam), [baseURL, useQueryParam]);
 
   return (
     <div className={cs("flex flex-col gap-x-6 md:p-0 xl:flex-row", classNames?.root ?? className)}>
       <div className="hidden xl:block">
-        <VerticalTabs tabs={appCategories} sticky linkShallow itemClassname={classNames?.verticalTabsItem} />
+        <VerticalTabs
+          tabs={appCategories}
+          sticky
+          linkProps={{ shallow: true }}
+          itemClassname={classNames?.verticalTabsItem}
+        />
       </div>
       <div className="block overflow-x-scroll xl:hidden">
-        <HorizontalTabs tabs={appCategories} linkShallow />
+        <HorizontalTabs tabs={appCategories} linkProps={{ shallow: true }} />
       </div>
-      <main className={classNames?.container ?? containerClassname} ref={animationRef}>
+      <main className={classNames?.container ?? containerClassname}>
         {children}
       </main>
     </div>

@@ -7,7 +7,6 @@ import { useLocale } from "@calcom/lib/hooks/useLocale";
 import type { DestinationCalendar } from "@calcom/prisma/client";
 import { trpc } from "@calcom/trpc/react";
 import { Select } from "@calcom/ui";
-import { Check } from "@calcom/ui/components/icon";
 
 interface Props {
   onChange: (value: { externalId: string; integration: string }) => void;
@@ -38,10 +37,7 @@ const OptionComponent = ({ ...props }: OptionProps<Option>) => {
   const { label } = props.data;
   return (
     <components.Option {...props}>
-      <div className="flex">
-        <span className="mr-auto">{label}</span>
-        {props.isSelected && <Check className="ml-2 h-4 w-4" />}
-      </div>
+      <span>{label}</span>
     </components.Option>
   );
 };
@@ -155,7 +151,7 @@ const DestinationCalendarSelector = ({
         }}
         isSearchable={false}
         className={classNames(
-          "border-default mb-2 mt-1 block w-full min-w-0 flex-1 rounded-none rounded-r-sm text-sm"
+          "border-default mt-1 mb-2 block w-full min-w-0 flex-1 rounded-none rounded-r-sm text-sm"
         )}
         onChange={(newValue) => {
           setSelectedOption(newValue);

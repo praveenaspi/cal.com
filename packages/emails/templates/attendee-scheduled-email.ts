@@ -1,13 +1,11 @@
 import type { DateArray, ParticipationStatus, ParticipationRole } from "ics";
 import { createEvent } from "ics";
-// eslint-disable-next-line no-restricted-imports
 import { cloneDeep } from "lodash";
 import type { TFunction } from "next-i18next";
 import { RRule } from "rrule";
 
 import dayjs from "@calcom/dayjs";
 import { getRichDescription } from "@calcom/lib/CalEventParser";
-import { TimeFormat } from "@calcom/lib/timeFormat";
 import type { CalendarEvent, Person } from "@calcom/types/Calendar";
 
 import { renderEmail } from "../";
@@ -124,28 +122,16 @@ ${getRichDescription(this.calEvent, this.t)}
     return this.calEvent.attendees[0].timeZone;
   }
 
-  protected getLocale(): string {
-    return this.calEvent.attendees[0].language.locale;
-  }
-
   protected getInviteeStart(format: string) {
-    return this.getFormattedRecipientTime({
-      time: this.calEvent.startTime,
-      format,
-    });
+    return this.getRecipientTime(this.calEvent.startTime, format);
   }
 
   protected getInviteeEnd(format: string) {
-    return this.getFormattedRecipientTime({
-      time: this.calEvent.endTime,
-      format,
-    });
+    return this.getRecipientTime(this.calEvent.endTime, format);
   }
 
   public getFormattedDate() {
-    const inviteeTimeFormat = this.calEvent.organizer.timeFormat || TimeFormat.TWELVE_HOUR;
-
-    return `${this.getInviteeStart(inviteeTimeFormat)} - ${this.getInviteeEnd(inviteeTimeFormat)}, ${this.t(
+    return `${this.getInviteeStart("h:mma")} - ${this.getInviteeEnd("h:mma")}, ${this.t(
       this.getInviteeStart("dddd").toLowerCase()
     )}, ${this.t(this.getInviteeStart("MMMM").toLowerCase())} ${this.getInviteeStart("D, YYYY")}`;
   }

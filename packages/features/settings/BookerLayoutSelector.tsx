@@ -10,7 +10,7 @@ import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { BookerLayouts, defaultBookerLayoutSettings } from "@calcom/prisma/zod-utils";
 import { bookerLayoutOptions, type BookerLayoutSettings } from "@calcom/prisma/zod-utils";
 import useMeQuery from "@calcom/trpc/react/hooks/useMeQuery";
-import { Label, CheckboxField, Button } from "@calcom/ui";
+import { Label, Checkbox, Button } from "@calcom/ui";
 
 type BookerLayoutSelectorProps = {
   title?: string;
@@ -23,13 +23,6 @@ type BookerLayoutSelectorProps = {
    * settings.
    */
   fallbackToUserSettings?: boolean;
-  /**
-   * isDark boolean should be passed in when the user selected 'dark mode' in the theme settings in profile/appearance.
-   * So it's not based on the user's system settings, but on the user's preference for the booker.
-   * This boolean is then used to show a dark version of the layout image. It's only easthetic, no functionality is attached
-   * to this boolean.
-   */
-  isDark?: boolean;
 };
 
 const defaultFieldName = "metadata.bookerLayouts";
@@ -39,7 +32,6 @@ export const BookerLayoutSelector = ({
   description,
   name,
   fallbackToUserSettings,
-  isDark,
 }: BookerLayoutSelectorProps) => {
   const { control, getValues } = useFormContext();
   const { t } = useLocale();
@@ -51,7 +43,7 @@ export const BookerLayoutSelector = ({
 
   return (
     <>
-      <Label className="mb-0">{title ? title : t("layout")}</Label>
+      <Label className="mb-0">{title ? title : t("bookerlayout_title")}</Label>
       <p className="text-subtle max-w-full break-words py-1 text-sm">
         {description ? description : t("bookerlayout_description")}
       </p>
@@ -66,7 +58,6 @@ export const BookerLayoutSelector = ({
             showUserSettings={shouldShowUserSettings}
             settings={value}
             onChange={onChange}
-            isDark={isDark}
           />
         )}
       />
@@ -78,12 +69,11 @@ type BookerLayoutFieldsProps = {
   settings: BookerLayoutSettings;
   onChange: (settings: BookerLayoutSettings) => void;
   showUserSettings: boolean;
-  isDark?: boolean;
 };
 
 type BookerLayoutState = { [key in BookerLayouts]: boolean };
 
-const BookerLayoutFields = ({ settings, onChange, showUserSettings, isDark }: BookerLayoutFieldsProps) => {
+const BookerLayoutFields = ({ settings, onChange, showUserSettings }: BookerLayoutFieldsProps) => {
   const { t } = useLocale();
   const { isLoading: isUserLoading, data: user } = useMeQuery();
   const [isOverridingSettings, setIsOverridingSettings] = useState(false);
@@ -153,10 +143,10 @@ const BookerLayoutFields = ({ settings, onChange, showUserSettings, isDark }: Bo
             <label>
               <img
                 className="mb-3 w-full max-w-none cursor-pointer"
-                src={`/bookerlayout_${layout}${isDark ? "_dark" : ""}.svg`}
+                src={`/bookerlayout_${layout}.svg`}
                 alt="Layout preview"
               />
-              <CheckboxField
+              <Checkbox
                 value={layout}
                 name={`bookerlayout_${layout}`}
                 description={t(`bookerlayout_${layout}`)}

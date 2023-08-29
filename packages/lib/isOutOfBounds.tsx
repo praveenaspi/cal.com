@@ -39,7 +39,8 @@ function isOutOfBounds(
     case PeriodType.ROLLING: {
       const periodRollingEndDay = periodCountCalendarDays
         ? dayjs().utcOffset(date.utcOffset()).add(periodDays, "days").endOf("day")
-        : dayjs().utcOffset(date.utcOffset()).businessDaysAdd(periodDays).endOf("day");
+        :0
+        // : dayjs().utcOffset(date.utcOffset()).businessDaysAdd(periodDays).endOf("day");
       return date.endOf("day").isAfter(periodRollingEndDay);
     }
 

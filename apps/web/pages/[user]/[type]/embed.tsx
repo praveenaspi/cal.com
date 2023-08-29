@@ -1,11 +1,21 @@
-import withEmbedSsr from "@lib/withEmbedSsr";
+import type { GetStaticPropsContext } from "next";
 
-import { getServerSideProps as _getServerSideProps } from "../[type]";
+import { getStaticProps as _getStaticProps } from "../[type]";
+
+export { getStaticPaths } from "../[type]";
 
 export { default } from "../[type]";
 
-// Somehow these types don't accept the {notFound: true} return type.
-// Probably still need to fix this. I don't know why this isn't allowed yet.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-export const getServerSideProps = withEmbedSsr(_getServerSideProps);
+export const getStaticProps = async (context: GetStaticPropsContext) => {
+  const staticResponse = await _getStaticProps(context);
+  if (staticResponse.notFound) {
+    return staticResponse;
+  }
+  return {
+    ...staticResponse,
+    props: {
+      ...staticResponse.props,
+      isEmbed: true,
+    },
+  };
+};

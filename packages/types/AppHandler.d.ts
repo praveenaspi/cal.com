@@ -9,12 +9,7 @@ export type AppDeclarativeHandler = {
   variant: string;
   supportsMultipleInstalls: false;
   handlerType: "add";
-  createCredential: (arg: {
-    user: Session["user"];
-    appType: string;
-    slug: string;
-    teamId?: number;
-  }) => Promise<Credential>;
+  createCredential: (arg: { user: Session["user"]; appType: string; slug: string }) => Promise<Credential>;
   supportsMultipleInstalls: boolean;
   redirect?: {
     newTab?: boolean;

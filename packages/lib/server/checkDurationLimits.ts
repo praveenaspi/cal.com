@@ -1,9 +1,7 @@
 import dayjs from "@calcom/dayjs";
 import type { IntervalLimit } from "@calcom/types/Calendar";
 
-import { getErrorFromUnknown } from "../errors";
 import { HttpError } from "../http-error";
-import { ascendingLimitKeys, intervalLimitKeyToUnit } from "../intervalLimit";
 import { parseDurationLimit } from "../isDurationLimits";
 import { getTotalBookingDuration } from "./queries";
 
@@ -13,18 +11,20 @@ export async function checkDurationLimits(
   eventId: number
 ) {
   const parsedDurationLimits = parseDurationLimit(durationLimits);
-  if (!parsedDurationLimits) return false;
+  if (!parsedDurationLimits) {
+    return false;
+  }
 
-  // not iterating entries to preserve types
-  const limitCalculations = ascendingLimitKeys.map((key) =>
-    checkDurationLimit({ key, limitingNumber: parsedDurationLimits[key], eventStartDate, eventId })
+  const limitCalculations = Object.entries(parsedDurationLimits).map(
+    async ([key, limitingNumber]) =>
+      await checkDurationLimit({ key, limitingNumber, eventStartDate, eventId })
   );
 
-  try {
-    return !!(await Promise.all(limitCalculations));
-  } catch (error) {
-    throw new HttpError({ message: getErrorFromUnknown(error).message, statusCode: 401 });
-  }
+  await Promise.all(limitCalculations).catch((error) => {
+    throw new HttpError({ message: error.message, statusCode: 401 });
+  });
+
+  return true;
 }
 
 export async function checkDurationLimit({
@@ -32,27 +32,34 @@ export async function checkDurationLimit({
   eventId,
   key,
   limitingNumber,
+  returnBusyTimes = false,
 }: {
   eventStartDate: Date;
   eventId: number;
-  key: keyof IntervalLimit;
-  limitingNumber: number | undefined;
+  key: string;
+  limitingNumber: number;
+  returnBusyTimes?: boolean;
 }) {
   {
-    if (!limitingNumber) return;
-
-    const unit = intervalLimitKeyToUnit(key);
-
-    const startDate = dayjs(eventStartDate).startOf(unit).toDate();
-    const endDate = dayjs(eventStartDate).endOf(unit).toDate();
+    // Take PER_DAY and turn it into day and PER_WEEK into week etc.
+    const filter = key.split("_")[1].toLocaleLowerCase() as "day" | "week" | "month" | "year";
+    const startDate = dayjs(eventStartDate).startOf(filter).toDate();
+    const endDate = dayjs(startDate).endOf(filter).toDate();
 
     const totalBookingDuration = await getTotalBookingDuration({ eventId, startDate, endDate });
+    if (totalBookingDuration >= limitingNumber) {
+      // This is used when getting availability
+      if (returnBusyTimes) {
+        return {
+          start: startDate,
+          end: endDate,
+        };
+      }
 
-    if (totalBookingDuration < limitingNumber) return;
-
-    throw new HttpError({
-      message: `duration_limit_reached`,
-      statusCode: 403,
-    });
+      throw new HttpError({
+        message: `duration_limit_reached`,
+        statusCode: 403,
+      });
+    }
   }
 }

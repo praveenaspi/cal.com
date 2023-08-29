@@ -9,7 +9,8 @@
   "verified": true,
   "rating": 4.3,
   "reviews": 69,
-  "categories": ["conferencing"],
+  "category": "video",
+  "categories": ["video"],
   "slug": "msteams",
   "title": "MS Teams (Requires work/school account)",
   "trending": true,
@@ -21,6 +22,5 @@
       "label": "MS Teams"
     }
   },
-  "dirName": "office365video",
-  "concurrentMeetings": true
+  "dirName": "office365video"
 }

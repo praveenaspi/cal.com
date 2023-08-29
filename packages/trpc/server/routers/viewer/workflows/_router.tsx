@@ -3,7 +3,6 @@ import { router } from "../../../trpc";
 import { ZActivateEventTypeInputSchema } from "./activateEventType.schema";
 import { ZCreateInputSchema } from "./create.schema";
 import { ZDeleteInputSchema } from "./delete.schema";
-import { ZFilteredListInputSchema } from "./filteredList.schema";
 import { ZGetInputSchema } from "./get.schema";
 import { ZGetVerifiedNumbersInputSchema } from "./getVerifiedNumbers.schema";
 import { ZListInputSchema } from "./list.schema";
@@ -22,7 +21,7 @@ type WorkflowsRouterHandlerCache = {
   verifyPhoneNumber?: typeof import("./verifyPhoneNumber.handler").verifyPhoneNumberHandler;
   getVerifiedNumbers?: typeof import("./getVerifiedNumbers.handler").getVerifiedNumbersHandler;
   getWorkflowActionOptions?: typeof import("./getWorkflowActionOptions.handler").getWorkflowActionOptionsHandler;
-  filteredList?: typeof import("./filteredList.handler").filteredListHandler;
+  getByViewer?: typeof import("./getByViewer.handler").getByViewerHandler;
 };
 
 const UNSTABLE_HANDLER_CACHE: WorkflowsRouterHandlerCache = {};
@@ -198,21 +197,21 @@ export const workflowsRouter = router({
       ctx,
     });
   }),
-  filteredList: authedProcedure.input(ZFilteredListInputSchema).query(async ({ ctx, input }) => {
-    if (!UNSTABLE_HANDLER_CACHE.filteredList) {
-      UNSTABLE_HANDLER_CACHE.filteredList = await import("./filteredList.handler").then(
-        (mod) => mod.filteredListHandler
+
+  getByViewer: authedProcedure.query(async ({ ctx }) => {
+    if (!UNSTABLE_HANDLER_CACHE.getByViewer) {
+      UNSTABLE_HANDLER_CACHE.getByViewer = await import("./getByViewer.handler").then(
+        (mod) => mod.getByViewerHandler
       );
     }
 
     // Unreachable code but required for type safety
-    if (!UNSTABLE_HANDLER_CACHE.filteredList) {
+    if (!UNSTABLE_HANDLER_CACHE.getByViewer) {
       throw new Error("Failed to load handler");
     }
 
-    return UNSTABLE_HANDLER_CACHE.filteredList({
+    return UNSTABLE_HANDLER_CACHE.getByViewer({
       ctx,
-      input,
     });
   }),
 });

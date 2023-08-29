@@ -76,11 +76,11 @@ export function AppSetDefaultLinkDialog({
               label={locationType.label ?? ""}
             />
 
-            <DialogFooter showDivider className="mt-8">
-              <DialogClose />
+            <DialogFooter>
               <Button color="primary" type="submit">
                 {t("save")}
               </Button>
+              <DialogClose />
             </DialogFooter>
           </>
         </Form>

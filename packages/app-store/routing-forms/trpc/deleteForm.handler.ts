@@ -1,10 +1,10 @@
-import { entityPrismaWhereClause } from "@calcom/lib/entityPermissionUtils";
-import type { PrismaClient } from "@calcom/prisma";
+import type { PrismaClient } from "@prisma/client";
+
 import { TRPCError } from "@calcom/trpc/server";
 import type { TrpcSessionUser } from "@calcom/trpc/server/trpc";
 
 import getConnectedForms from "../lib/getConnectedForms";
-import { isFormCreateEditAllowed } from "../lib/isFormCreateEditAllowed";
+import { isFormEditAllowed } from "../lib/isFormEditAllowed";
 import type { TDeleteFormInputSchema } from "./deleteForm.schema";
 
 interface DeleteFormHandlerOptions {
@@ -16,7 +16,7 @@ interface DeleteFormHandlerOptions {
 }
 export const deleteFormHandler = async ({ ctx, input }: DeleteFormHandlerOptions) => {
   const { user, prisma } = ctx;
-  if (!(await isFormCreateEditAllowed({ userId: user.id, formId: input.id, targetTeamId: null }))) {
+  if (!(await isFormEditAllowed({ userId: user.id, formId: input.id }))) {
     throw new TRPCError({
       code: "FORBIDDEN",
     });
@@ -28,28 +28,18 @@ export const deleteFormHandler = async ({ ctx, input }: DeleteFormHandlerOptions
       userId: user.id,
     })
   ).length;
-
   if (areFormsUsingIt) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "This form is being used by other forms. Please remove it's usage from there first.",
     });
   }
-
-  const deletedRes = await prisma.app_RoutingForms_Form.deleteMany({
+  return await prisma.app_RoutingForms_Form.deleteMany({
     where: {
       id: input.id,
-      ...entityPrismaWhereClause({ userId: user.id }),
+      userId: user.id,
     },
   });
-
-  if (!deletedRes.count) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Form seems to be already deleted.",
-    });
-  }
-  return deletedRes;
 };
 
 export default deleteFormHandler;

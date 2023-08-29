@@ -1,4 +1,4 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { Props } from "react-select";
 
 import { classNames } from "@calcom/lib";
@@ -23,7 +23,7 @@ export const CheckedTeamSelect = ({
 }) => {
   const { t } = useLocale();
 
-  const [animationRef] = useAutoAnimate<HTMLUListElement>();
+  // const [animationRef] = useAutoAnimate<HTMLUListElement>();
 
   return (
     <>
@@ -39,14 +39,14 @@ export const CheckedTeamSelect = ({
       {/* This class name conditional looks a bit odd but it allows a seemless transition when using autoanimate
        - Slides down from the top instead of just teleporting in from nowhere*/}
       <ul
-        className={classNames("mb-1 mt-3 rounded-md", value.length >= 1 && "border-subtle border")}
-        ref={animationRef}>
+        className={classNames("mt-3 rounded-md", value.length >= 1 && "border-subtle border")}
+      >
         {value.map((option, index) => (
           <li
             key={option.value}
-            className={`flex px-3 py-2 ${index === value.length - 1 ? "" : "border-subtle border-b"}`}>
+            className={`flex py-2 px-3 ${index === value.length - 1 ? "" : "border-subtle border-b"}`}>
             <Avatar size="sm" imageSrc={option.avatar} alt={option.label} />
-            <p className="text-emphasis my-auto ms-3 text-sm">{option.label}</p>
+            <p className="text-emphasis ms-3 my-auto text-sm">{option.label}</p>
             <X
               onClick={() => props.onChange(value.filter((item) => item.value !== option.value))}
               className="my-auto ml-auto h-4 w-4"

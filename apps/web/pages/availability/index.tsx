@@ -1,16 +1,12 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useCallback } from "react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 
-import { getLayout } from "@calcom/features/MainLayout";
 import { NewScheduleButton, ScheduleListItem } from "@calcom/features/schedules";
-import { ShellMain } from "@calcom/features/shell/Shell";
-import { AvailabilitySliderTable } from "@calcom/features/timezone-buddy/components/AvailabilitySliderTable";
+import Shell from "@calcom/features/shell/Shell";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { HttpError } from "@calcom/lib/http-error";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
-import { EmptyScreen, showToast, ToggleGroup } from "@calcom/ui";
+import { EmptyScreen, showToast } from "@calcom/ui";
 import { Clock } from "@calcom/ui/components/icon";
 
 import { withQuery } from "@lib/QueryCell";
@@ -23,8 +19,6 @@ export function AvailabilityList({ schedules }: RouterOutputs["viewer"]["availab
   const utils = trpc.useContext();
 
   const meQuery = trpc.viewer.me.useQuery();
-
-  const router = useRouter();
 
   const deleteMutation = trpc.viewer.availability.schedule.delete.useMutation({
     onMutate: async ({ scheduleId }) => {
@@ -73,22 +67,9 @@ export function AvailabilityList({ schedules }: RouterOutputs["viewer"]["availab
     },
   });
 
-  const duplicateMutation = trpc.viewer.availability.schedule.duplicate.useMutation({
-    onSuccess: async ({ schedule }) => {
-      await router.push(`/availability/${schedule.id}`);
-      showToast(t("schedule_created_successfully", { scheduleName: schedule.name }), "success");
-    },
-    onError: (err) => {
-      if (err instanceof HttpError) {
-        const message = `${err.statusCode}: ${err.message}`;
-        showToast(message, "error");
-      }
-    },
-  });
-
   // Adds smooth delete button - item fades and old item slides into place
 
-  const [animationParentRef] = useAutoAnimate<HTMLUListElement>();
+  // const [animationParentRef] = useAutoAnimate<HTMLUListElement>();
 
   return (
     <>
@@ -98,13 +79,12 @@ export function AvailabilityList({ schedules }: RouterOutputs["viewer"]["availab
             Icon={Clock}
             headline={t("new_schedule_heading")}
             description={t("new_schedule_description")}
-            className="w-full"
             buttonRaw={<NewScheduleButton />}
           />
         </div>
       ) : (
         <div className="border-subtle bg-default mb-16 overflow-hidden rounded-md border">
-          <ul className="divide-subtle divide-y" data-testid="schedules" ref={animationParentRef}>
+          <ul className="divide-subtle divide-y" data-testid="schedules">
             {schedules.map((schedule) => (
               <ScheduleListItem
                 displayOptions={{
@@ -116,7 +96,6 @@ export function AvailabilityList({ schedules }: RouterOutputs["viewer"]["availab
                 isDeletable={schedules.length !== 1}
                 updateDefault={updateMutation.mutate}
                 deleteFunction={deleteMutation.mutate}
-                duplicateFunction={duplicateMutation.mutate}
               />
             ))}
           </ul>
@@ -131,57 +110,17 @@ const WithQuery = withQuery(trpc.viewer.availability.list as any);
 
 export default function AvailabilityPage() {
   const { t } = useLocale();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // Get a new searchParams string by merging the current
-  // searchParams with a provided key/value pair
-  const createQueryString = useCallback(
-    (name: string, value: string) => {
-      const params = new URLSearchParams(searchParams ?? undefined);
-      params.set(name, value);
-
-      return params.toString();
-    },
-    [searchParams]
-  );
   return (
     <div>
-      <ShellMain
+      <Shell
         heading={t("availability")}
         hideHeadingOnMobile
         subtitle={t("configure_availability")}
-        CTA={
-          <div className="flex gap-2">
-            <ToggleGroup
-              className="hidden md:block"
-              defaultValue={searchParams?.get("type") ?? "mine"}
-              onValueChange={(value) => {
-                if (!value) return;
-                router.push(`${pathname}?${createQueryString("type", value)}`);
-              }}
-              options={[
-                { value: "mine", label: t("my_availability") },
-                { value: "team", label: t("team_availability") },
-              ]}
-            />
-            <NewScheduleButton />
-          </div>
-        }>
-        {searchParams?.get("type") === "team" ? (
-          <AvailabilitySliderTable />
-        ) : (
-          <WithQuery
-            success={({ data }) => <AvailabilityList {...data} />}
-            customLoader={<SkeletonLoader />}
-          />
-        )}
-      </ShellMain>
+        CTA={<NewScheduleButton />}>
+        <WithQuery success={({ data }) => <AvailabilityList {...data} />} customLoader={<SkeletonLoader />} />
+      </Shell>
     </div>
   );
 }
-
-AvailabilityPage.getLayout = getLayout;
 
 AvailabilityPage.PageWrapper = PageWrapper;

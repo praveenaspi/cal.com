@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-// eslint-disable-next-line no-restricted-imports
 import { noop } from "lodash";
-import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
 import type { FC } from "react";
 import { useReducer, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -28,8 +27,8 @@ import {
   SkeletonButton,
   SkeletonContainer,
   SkeletonText,
-  Switch,
   TextField,
+  Switch,
 } from "@calcom/ui";
 import { AlertCircle, Edit } from "@calcom/ui/components/icon";
 
@@ -245,7 +244,7 @@ const EditKeysModal: FC<{
             ))}
           </Form>
         )}
-        <DialogFooter showDivider className="mt-8">
+        <DialogFooter>
           <DialogClose onClick={handleModelClose} />
           <Button form="edit-keys" type="submit">
             {t("save")}
@@ -266,13 +265,13 @@ interface EditModalState extends Pick<App, "keys"> {
 }
 
 const AdminAppsListContainer = () => {
-  const searchParams = useSearchParams();
   const { t } = useLocale();
-  const category = searchParams.get("category") || AppCategories.calendar;
+  const router = useRouter();
+  const { category } = querySchema.parse(router.query);
 
   const { data: apps, isLoading } = trpc.viewer.appsRouter.listLocal.useQuery(
     { category },
-    { enabled: searchParams !== null }
+    { enabled: router.isReady }
   );
 
   const [modalState, setModalState] = useReducer(
@@ -293,7 +292,7 @@ const AdminAppsListContainer = () => {
 
   if (isLoading) return <SkeletonLoader />;
 
-  if (!apps || apps.length === 0) {
+  if (!apps) {
     return (
       <EmptyScreen
         Icon={AlertCircle}
@@ -334,7 +333,7 @@ export default AdminAppsList;
 const SkeletonLoader = () => {
   return (
     <SkeletonContainer className="w-[30rem] pr-10">
-      <div className="mb-8 mt-6 space-y-6">
+      <div className="mt-6 mb-8 space-y-6">
         <SkeletonText className="h-8 w-full" />
         <SkeletonText className="h-8 w-full" />
         <SkeletonText className="h-8 w-full" />

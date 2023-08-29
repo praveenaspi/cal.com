@@ -7,7 +7,6 @@ import type { Slots } from "./types";
  * @param date Format YYYY-MM-DD
  * @param scheduleCache Instance of useScheduleWithCache
  */
-
 export const useSlotsForDate = (date: string | null, slots?: Slots) => {
   const slotsForDate = useMemo(() => {
     if (!date || typeof slots === "undefined") return [];
@@ -17,9 +16,9 @@ export const useSlotsForDate = (date: string | null, slots?: Slots) => {
   return slotsForDate;
 };
 
-export const useSlotsForAvailableDates = (dates: (string | null)[], slots?: Slots) => {
+export const useSlotsForMultipleDates = (dates: (string | null)[], slots?: Slots) => {
   const slotsForDates = useMemo(() => {
-    if (slots === undefined) return [];
+    if (typeof slots === "undefined") return [];
     return dates
       .filter((date) => date !== null)
       .map((date) => ({
@@ -27,5 +26,6 @@ export const useSlotsForAvailableDates = (dates: (string | null)[], slots?: Slot
         date,
       }));
   }, [dates, slots]);
+
   return slotsForDates;
 };

@@ -3,7 +3,7 @@ import { components as reactSelectComponents } from "react-select";
 
 import { classNames } from "@calcom/lib";
 
-import { UpgradeTeamsBadge, KYCVerificationBadge } from "../../badge";
+import { UpgradeTeamsBadge } from "../../badge";
 import { Check } from "../../icon";
 
 export const InputComponent = <
@@ -30,8 +30,6 @@ type ExtendedOption = {
   value: string | number;
   label: string;
   needsUpgrade?: boolean;
-  needsVerification?: boolean;
-  verificationAction?: () => void;
 };
 
 export const OptionComponent = <
@@ -48,15 +46,7 @@ export const OptionComponent = <
         <span className="mr-auto" data-testid={`select-option-${(props as unknown as ExtendedOption).value}`}>
           {props.label || <>&nbsp;</>}
         </span>
-        {(props.data as unknown as ExtendedOption).needsUpgrade ? (
-          <UpgradeTeamsBadge />
-        ) : (props.data as unknown as ExtendedOption).needsVerification ? (
-          <KYCVerificationBadge
-            verifyTeamAction={(props.data as unknown as ExtendedOption).verificationAction}
-          />
-        ) : (
-          <></>
-        )}
+        {(props.data as unknown as ExtendedOption).needsUpgrade && <UpgradeTeamsBadge />}
         {props.isSelected && <Check className="ml-2 h-4 w-4" />}
       </div>
     </reactSelectComponents.Option>

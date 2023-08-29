@@ -1,4 +1,4 @@
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import type { FormEvent } from "react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -8,15 +8,21 @@ import { md } from "@calcom/lib/markdownIt";
 import { telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import turndown from "@calcom/lib/turndownService";
 import { trpc } from "@calcom/trpc/react";
-import { Avatar, Button, Editor, ImageUploader, Label, showToast } from "@calcom/ui";
+import { Button, Editor, ImageUploader, Label, showToast } from "@calcom/ui";
+import { Avatar } from "@calcom/ui";
 import { ArrowRight } from "@calcom/ui/components/icon";
+
+import type { IOnboardingPageProps } from "../../../pages/getting-started/[[...step]]";
 
 type FormData = {
   bio: string;
 };
+interface IUserProfileProps {
+  user: IOnboardingPageProps["user"];
+}
 
-const UserProfile = () => {
-  const [user] = trpc.viewer.me.useSuspenseQuery();
+const UserProfile = (props: IUserProfileProps) => {
+  const { user } = props;
   const { t } = useLocale();
   const avatarRef = useRef<HTMLInputElement>(null);
   const { setValue, handleSubmit, getValues } = useForm<FormData>({
@@ -80,16 +86,28 @@ const UserProfile = () => {
     {
       title: t("15min_meeting"),
       slug: "15min",
+      // leadId: "",
+      eventType: "",
+      businessUnit: "",
+      calendarName: "",
       length: 15,
     },
     {
       title: t("30min_meeting"),
       slug: "30min",
+      // leadId: "",
+      eventType: "",
+      businessUnit: "",
+      calendarName: "",
       length: 30,
     },
     {
       title: t("secret_meeting"),
       slug: "secret",
+      // leadId: "",
+      eventType: "",
+      businessUnit: "",
+      calendarName: "",
       length: 15,
       hidden: true,
     },

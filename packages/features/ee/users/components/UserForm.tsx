@@ -1,21 +1,11 @@
-// eslint-disable-next-line no-restricted-imports
 import { noop } from "lodash";
+import { useRouter } from "next/router";
+import { useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
-import { localeOptions } from "@calcom/lib/i18n";
 import { nameOfDay } from "@calcom/lib/weekday";
-import {
-  Avatar,
-  Button,
-  EmailField,
-  Form,
-  ImageUploader,
-  Label,
-  Select,
-  TextField,
-  TimezoneSelect,
-} from "@calcom/ui";
+import { Button, EmailField, Form, Label, Select, TextField, TimezoneSelect } from "@calcom/ui";
 
 import type { UserAdminRouterOutputs } from "../server/trpc-router";
 
@@ -48,7 +38,15 @@ export const UserForm = ({
   onSubmit: (data: FormValues) => void;
   submitLabel?: string;
 }) => {
+  const router = useRouter();
   const { t } = useLocale();
+
+  const localeOptions = useMemo(() => {
+    return (router.locales || []).map((locale) => ({
+      value: locale,
+      label: new Intl.DisplayNames(locale, { type: "language" }).of(locale) || "",
+    }));
+  }, [router.locales]);
 
   const timeFormatOptions = [
     { value: 12, label: t("12_hour") },
@@ -75,7 +73,7 @@ export const UserForm = ({
     { value: "GOOGLE", label: "GOOGLE" },
     { value: "SAML", label: "SAML" },
   ];
-  const defaultLocale = defaultValues?.locale || localeOptions[0].value;
+
   const form = useForm<FormValues>({
     defaultValues: {
       avatar: defaultValues?.avatar,
@@ -84,8 +82,8 @@ export const UserForm = ({
       email: defaultValues?.email,
       bio: defaultValues?.bio,
       locale: {
-        value: defaultLocale,
-        label: new Intl.DisplayNames(defaultLocale, { type: "language" }).of(defaultLocale) || "",
+        value: defaultValues?.locale || localeOptions[0].value,
+        label: localeOptions.find((option) => option.value === localeProp)?.label || "",
       },
       timeFormat: {
         value: defaultValues?.timeFormat || 12,
@@ -105,7 +103,7 @@ export const UserForm = ({
       identityProvider: {
         value: defaultValues?.identityProvider || identityProviderOptions[0].value,
         label:
-          identityProviderOptions.find((option) => option.value === defaultValues?.identityProvider)?.label ||
+          identityProviderOptions.find((option) => option.value === defaultValues?.role)?.label ||
           identityProviderOptions[0].label,
       },
     },
@@ -113,7 +111,8 @@ export const UserForm = ({
 
   return (
     <Form form={form} className="space-y-4" handleSubmit={onSubmit}>
-      <div className="flex items-center">
+      {/* TODO: Enable Avatar uploader in a follow up */}
+      {/*  <div className="flex items-center">
         <Controller
           control={form.control}
           name="avatar"
@@ -134,7 +133,7 @@ export const UserForm = ({
             </>
           )}
         />
-      </div>
+      </div> */}
       <Controller
         name="role"
         control={form.control}

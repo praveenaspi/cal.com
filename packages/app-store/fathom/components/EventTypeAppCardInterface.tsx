@@ -1,31 +1,32 @@
+import { useState } from "react";
+
 import { useAppContextWithSchema } from "@calcom/app-store/EventTypeAppContext";
 import AppCard from "@calcom/app-store/_components/AppCard";
-import useIsAppEnabled from "@calcom/app-store/_utils/useIsAppEnabled";
 import type { EventTypeAppCardComponent } from "@calcom/app-store/types";
 import { TextField } from "@calcom/ui";
 
 import type { appDataSchema } from "../zod";
 
-const EventTypeAppCard: EventTypeAppCardComponent = function EventTypeAppCard({ app, eventType }) {
-  const [getAppData, setAppData, LockedIcon, disabled] = useAppContextWithSchema<typeof appDataSchema>();
+const EventTypeAppCard: EventTypeAppCardComponent = function EventTypeAppCard({ app }) {
+  const [getAppData, setAppData] = useAppContextWithSchema<typeof appDataSchema>();
   const trackingId = getAppData("trackingId");
-  const { enabled, updateEnabled } = useIsAppEnabled(app);
+  const [enabled, setEnabled] = useState(getAppData("enabled"));
 
   return (
     <AppCard
       setAppData={setAppData}
       app={app}
-      disableSwitch={disabled}
-      LockedIcon={LockedIcon}
       switchOnClick={(e) => {
-        updateEnabled(e);
+        if (!e) {
+          setEnabled(false);
+        } else {
+          setEnabled(true);
+        }
       }}
-      switchChecked={enabled}
-      teamId={eventType.team?.id || undefined}>
+      switchChecked={enabled}>
       <TextField
         name="Tracking ID"
         value={trackingId}
-        disabled={disabled}
         onChange={(e) => {
           setAppData("trackingId", e.target.value);
         }}

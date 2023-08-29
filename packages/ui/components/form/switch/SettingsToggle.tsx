@@ -1,4 +1,4 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { ReactNode } from "react";
 
 import { Label } from "..";
@@ -27,11 +27,11 @@ function SettingsToggle({
   tooltip,
   ...rest
 }: Props) {
-  const [animateRef] = useAutoAnimate<HTMLDivElement>();
+  // const [animateRef] = useAutoAnimate<HTMLDivElement>();
 
   return (
     <>
-      <div className="flex w-full flex-col space-y-4 lg:flex-row lg:space-x-4 lg:space-y-0">
+      <div className="flex w-full flex-col space-y-4 lg:flex-row lg:space-y-0 lg:space-x-4">
         <fieldset className="block w-full flex-col sm:flex">
           <div className="flex space-x-3">
             <Switch
@@ -52,7 +52,7 @@ function SettingsToggle({
             </div>
           </div>
           {children && (
-            <div className="lg:ml-14" ref={animateRef}>
+            <div className="lg:ml-14">
               {checked && <div className="mt-4">{children}</div>}
             </div>
           )}

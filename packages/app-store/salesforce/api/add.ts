@@ -3,7 +3,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import { WEBAPP_URL } from "@calcom/lib/constants";
 
-import { encodeOAuthState } from "../../_utils/encodeOAuthState";
 import getAppKeysFromSlug from "../../_utils/getAppKeysFromSlug";
 
 let consumer_key = "";
@@ -20,9 +19,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     redirectUri: `${WEBAPP_URL}/api/integrations/salesforce/callback`,
   });
 
-  const url = salesforceClient.oauth2.getAuthorizationUrl({
-    scope: "refresh_token full",
-    state: encodeOAuthState(req),
-  });
+  const url = salesforceClient.oauth2.getAuthorizationUrl({ scope: "refresh_token full" });
   res.status(200).json({ url });
 }

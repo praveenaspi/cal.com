@@ -1,11 +1,11 @@
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { HttpError } from "@calcom/lib/http-error";
 import { trpc } from "@calcom/trpc/react";
 import type { SVGComponent } from "@calcom/types/SVGComponent";
-import { CreateButtonWithTeamsList, EmptyScreen as ClassicEmptyScreen, showToast } from "@calcom/ui";
-import { Mail, Smartphone, Zap } from "@calcom/ui/components/icon";
+import { CreateButton, showToast, EmptyScreen as ClassicEmptyScreen } from "@calcom/ui";
+import { Smartphone, Mail, Zap } from "@calcom/ui/components/icon";
 
 type WorkflowExampleType = {
   Icon: SVGComponent;
@@ -24,14 +24,22 @@ function WorkflowExample(props: WorkflowExampleType) {
           </div>
         </div>
         <div className="m-auto w-full flex-grow items-center justify-center ">
-          <div className="text-semibold text-emphasis line-clamp-2 w-full text-sm font-medium">{text}</div>
+          <div className="line-clamp-2 text-semibold text-emphasis w-full text-sm font-medium">{text}</div>
         </div>
       </div>
     </div>
   );
 }
 
-export default function EmptyScreen(props: { isFilteredView: boolean }) {
+export default function EmptyScreen(props: {
+  profileOptions: {
+    label: string | null;
+    image?: string | null;
+    teamId: number | null | undefined;
+    slug: string | null;
+  }[];
+  isFilteredView: boolean;
+}) {
   const { t } = useLocale();
   const router = useRouter();
 
@@ -74,12 +82,13 @@ export default function EmptyScreen(props: { isFilteredView: boolean }) {
         </div>
         <div className="max-w-[420px] text-center">
           <h2 className="text-semibold font-cal mt-6 text-xl dark:text-gray-300">{t("workflows")}</h2>
-          <p className="text-default mt-3 line-clamp-2 text-sm font-normal leading-6 dark:text-gray-300">
+          <p className="line-clamp-2 text-default mt-3 text-sm font-normal leading-6 dark:text-gray-300">
             {t("no_workflows_description")}
           </p>
           <div className="mt-8 ">
-            <CreateButtonWithTeamsList
+            <CreateButton
               subtitle={t("new_workflow_subtitle").toUpperCase()}
+              options={props.profileOptions}
               createFunction={(teamId?: number) => createMutation.mutate({ teamId })}
               buttonText={t("create_workflow")}
               isLoading={createMutation.isLoading}

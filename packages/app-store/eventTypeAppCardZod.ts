@@ -3,7 +3,6 @@ import { z } from "zod";
 
 export const eventTypeAppCardZod = z.object({
   enabled: z.boolean().optional(),
-  credentialId: z.number().optional(),
 });
 
 export const appKeysSchema = z.object({});

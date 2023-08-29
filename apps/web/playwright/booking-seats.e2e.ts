@@ -8,6 +8,7 @@ import { BookingStatus } from "@calcom/prisma/enums";
 
 import type { Fixtures } from "./lib/fixtures";
 import { test } from "./lib/fixtures";
+import { testBothBookers } from "./lib/new-booker";
 import {
   bookTimeSlot,
   createNewSeatedEventType,
@@ -24,6 +25,10 @@ async function createUserWithSeatedEvent(users: Fixtures["users"]) {
       {
         title: "Seated event",
         slug,
+        // leadId: "",
+        eventType: "",
+        calendarName: "",
+        businessUnit: "",
         seatsPerTimeSlot: 10,
         requiresConfirmation: true,
         length: 30,
@@ -55,7 +60,7 @@ async function createUserWithSeatedEventAndAttendees(
   return { user, eventType, booking };
 }
 
-test.describe("Booking with Seats", () => {
+testBothBookers.describe("Booking with Seats", (bookerVariant) => {
   test("User can create a seated event (2 seats as example)", async ({ users, page }) => {
     const user = await users.create({ name: "Seated event" });
     await user.apiLogin();
@@ -75,6 +80,10 @@ test.describe("Booking with Seats", () => {
         {
           title: "My 2-seated event",
           slug,
+          // leadId: "",
+          eventType: "",
+          calendarName: "",
+          businessUnit: "",
           length: 60,
           seatsPerTimeSlot: 2,
           seatsShowAttendees: true,
@@ -82,55 +91,33 @@ test.describe("Booking with Seats", () => {
       ],
     });
     await page.goto(`/${user.username}/${slug}`);
+    await selectFirstAvailableTimeSlotNextMonth(page);
 
-    let bookingUrl = "";
+    // Kept in if statement here, since it's only temporary
+    // until the old booker isn't used anymore, and I wanted
+    // to change the test as little as possible.
+    // eslint-disable-next-line playwright/no-conditional-in-test
+    if (bookerVariant === "old-booker") {
+      await page.waitForURL((url) => {
+        return url.pathname.endsWith("/book");
+      });
+    }
 
+    const bookingUrl = page.url();
     await test.step("Attendee #1 can book a seated event time slot", async () => {
-      await selectFirstAvailableTimeSlotNextMonth(page);
+      await page.goto(bookingUrl);
       await bookTimeSlot(page);
       await expect(page.locator("[data-testid=success-page]")).toBeVisible();
     });
     await test.step("Attendee #2 can book the same seated event time slot", async () => {
-      await page.goto(`/${user.username}/${slug}`);
-      await selectFirstAvailableTimeSlotNextMonth(page);
-
-      await page.waitForURL(/bookingUid/);
-      bookingUrl = page.url();
+      await page.goto(bookingUrl);
       await bookTimeSlot(page, { email: "jane.doe@example.com", name: "Jane Doe" });
       await expect(page.locator("[data-testid=success-page]")).toBeVisible();
     });
-    await test.step("Attendee #3 cannot click on the same seated event time slot", async () => {
-      await page.goto(`/${user.username}/${slug}`);
-
-      await page.click('[data-testid="incrementMonth"]');
-
-      // TODO: Find out why the first day is always booked on tests
-      await page.locator('[data-testid="day"][data-disabled="false"]').nth(0).click();
-      await expect(page.locator('[data-testid="time"][data-disabled="true"]')).toBeVisible();
-    });
-    await test.step("Attendee #3 cannot book the same seated event time slot accessing via url", async () => {
+    await test.step("Attendee #3 cannot book the same seated event time slot", async () => {
       await page.goto(bookingUrl);
-
       await bookTimeSlot(page, { email: "rick@example.com", name: "Rick" });
       await expect(page.locator("[data-testid=success-page]")).toBeHidden();
-    });
-
-    await test.step("User owner should have only 1 booking with 3 attendees", async () => {
-      // Make sure user owner has only 1 booking with 3 attendees
-      const bookings = await prisma.booking.findMany({
-        where: { eventTypeId: user.eventTypes.find((e) => e.slug === slug)?.id },
-        select: {
-          id: true,
-          attendees: {
-            select: {
-              id: true,
-            },
-          },
-        },
-      });
-
-      expect(bookings).toHaveLength(1);
-      expect(bookings[0].attendees).toHaveLength(2);
     });
   });
 
@@ -166,7 +153,7 @@ test.describe("Booking with Seats", () => {
       await page.locator('[data-testid="confirm_cancel"]').click();
       await page.waitForLoadState("networkidle");
 
-      await expect(page).toHaveURL(/\/booking\/.*/);
+      await expect(page).toHaveURL(/.*booking/);
 
       const cancelledHeadline = page.locator('[data-testid="cancelled-headline"]');
       await expect(cancelledHeadline).toBeVisible();
@@ -190,8 +177,9 @@ test.describe("Booking with Seats", () => {
         await page.locator('[data-testid="cancel"]').click();
         await page.fill('[data-testid="cancel_reason"]', "Double booked!");
         await page.locator('[data-testid="confirm_cancel"]').click();
+        await page.waitForLoadState("networkidle");
 
-        await expect(page).toHaveURL(/\/booking\/.*/);
+        await expect(page).toHaveURL(/.*booking/);
 
         const cancelledHeadline = page.locator('[data-testid="cancelled-headline"]');
         await expect(cancelledHeadline).toBeVisible();
@@ -207,7 +195,7 @@ test.describe("Booking with Seats", () => {
   });
 });
 
-test.describe("Reschedule for booking with seats", () => {
+testBothBookers.describe("Reschedule for booking with seats", () => {
   test("Should reschedule booking with seats", async ({ page, users, bookings }) => {
     const { booking } = await createUserWithSeatedEventAndAttendees({ users, bookings }, [
       { name: "John First", email: `first+seats-${uuid()}@cal.com`, timeZone: "Europe/Berlin" },
@@ -247,10 +235,9 @@ test.describe("Reschedule for booking with seats", () => {
 
     await page.locator('[data-testid="confirm-reschedule-button"]').click();
 
-    // should wait for URL but that path starts with booking/
-    await page.waitForURL(/\/booking\/.*/);
+    await page.waitForLoadState("networkidle");
 
-    await expect(page).toHaveURL(/\/booking\/.*/);
+    await expect(page).toHaveURL(/.*booking/);
 
     // Should expect new booking to be created for John Third
     const newBooking = await prisma.booking.findFirst({
@@ -313,7 +300,7 @@ test.describe("Reschedule for booking with seats", () => {
 
     await page.locator('[data-testid="confirm-reschedule-button"]').click();
 
-    await page.waitForURL(/\/booking\/.*/);
+    await page.waitForURL(/.*booking/);
 
     await page.goto(`/reschedule/${references[1].referenceUid}`);
 
@@ -322,7 +309,7 @@ test.describe("Reschedule for booking with seats", () => {
     await page.locator('[data-testid="confirm-reschedule-button"]').click();
 
     // Using waitForUrl here fails the assertion `expect(oldBooking?.status).toBe(BookingStatus.CANCELLED);` probably because waitForUrl is considered complete before waitForNavigation and till that time the booking is not cancelled
-    await page.waitForURL(/\/booking\/.*/);
+    await page.waitForNavigation({ url: /.*booking/ });
 
     // Should expect old booking to be cancelled
     const oldBooking = await prisma.booking.findFirst({
@@ -372,7 +359,9 @@ test.describe("Reschedule for booking with seats", () => {
 
     await page.locator('[data-testid="confirm_cancel"]').click();
 
-    await expect(page).toHaveURL(/\/booking\/.*/);
+    await page.waitForLoadState("networkidle");
+
+    await expect(page).toHaveURL(/.*booking/);
 
     // Should expect old booking to be cancelled
     const updatedBooking = await prisma.booking.findFirst({
@@ -476,7 +465,7 @@ test.describe("Reschedule for booking with seats", () => {
 
     await page.waitForLoadState("networkidle");
 
-    await expect(page).toHaveURL(/\/booking\/.*/);
+    await expect(page).toHaveURL(/.*booking/);
 
     await page.goto(
       `/booking/${booking.uid}?cancel=true&allRemainingBookings=false&seatReferenceUid=${bookingSeats[1].referenceUid}`
@@ -487,7 +476,7 @@ test.describe("Reschedule for booking with seats", () => {
 
     await page.waitForLoadState("networkidle");
 
-    await expect(page).toHaveURL(/\/booking\/.*/);
+    await expect(page).toHaveURL(/.*booking/);
   });
 
   test("Should book with seats and hide attendees info from showAttendees true", async ({

@@ -13,7 +13,7 @@ const PoweredByCal = ({ logoOnly }: { logoOnly?: boolean }) => {
 
   return (
     <div className={"p-2 text-center text-xs sm:text-right" + (isEmbed ? " max-w-3xl" : "")}>
-      <Link href={POWERED_BY_URL} target="_blank" className="text-subtle">
+      {/* <Link href={POWERED_BY_URL} target="_blank" className="text-subtle">
         {!logoOnly && <>{t("powered_by")} </>}
         {APP_NAME === "Cal.com" || !hasValidLicense ? (
           <>
@@ -26,7 +26,7 @@ const PoweredByCal = ({ logoOnly }: { logoOnly?: boolean }) => {
         ) : (
           <span className="text-emphasis font-semibold opacity-50 hover:opacity-100">{APP_NAME}</span>
         )}
-      </Link>
+      </Link> */}
     </div>
   );
 };

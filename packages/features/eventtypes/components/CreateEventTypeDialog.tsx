@@ -1,12 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isValidPhoneNumber } from "libphonenumber-js";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import { useEffect } from "react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { useOrgBranding } from "@calcom/features/ee/organizations/context/provider";
 import { useFlagMap } from "@calcom/features/flags/context/provider";
 import { classNames } from "@calcom/lib";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
@@ -30,6 +29,7 @@ import {
   showToast,
   TextField,
   Editor,
+  Select,
   DialogFooter,
 } from "@calcom/ui";
 
@@ -82,7 +82,6 @@ export default function CreateEventTypeDialog({
   const { t } = useLocale();
   const router = useRouter();
   const [firstRender, setFirstRender] = useState(true);
-  const orgBranding = useOrgBranding();
 
   const {
     data: { teamId, eventPage: pageSlug },
@@ -92,6 +91,7 @@ export default function CreateEventTypeDialog({
   const form = useForm<z.infer<typeof createEventTypeInput>>({
     defaultValues: {
       length: 15,
+      schedulingType: SchedulingType.ROUND_ROBIN,
     },
     resolver: zodResolver(createEventTypeInput),
   });
@@ -114,6 +114,36 @@ export default function CreateEventTypeDialog({
     (teamProfile?.membershipRole === MembershipRole.OWNER ||
       teamProfile?.membershipRole === MembershipRole.ADMIN);
 
+  const BUSINESS_UNIT = [
+    { label: "Arom360", value: "Arom360" },
+    { label: "Hotel Collection", value: "Hotel Collection" },
+    { label: "Hotel Collection Distributor", value: "Hotel Collection Distributor" },
+    { label: "Hotel Scents", value: "Hotel Scents" },
+  ];
+
+  const CALENDAR_TYPE = [
+    { label: "Boca Raton Retail", value: "Boca Raton Retail" },
+    { label: "Naples Retail", value: "Naples Retail" },
+    { label: "Palm Beach Retail", value: "Palm Beach Retail" },
+    { label: "HCD Wholesale", value: "HCD Wholesale" },
+    { label: "Arom360", value: "Arom360" },
+    { label: "Hotel Collection", value: "Hotel Collection" },
+    { label: "Hotel Scent", value: "Hotel Scent" },
+    { label: "Sceting.com", value: "Sceting.com" },
+    { label: "Pre-qualified - AR", value: "Pre-qualified - AR" },
+    { label: "Pre-qualified - HC", value: "Pre-qualified - HC" },
+    { label: "Scent Consultant - AR", value: "Scent Consultant - AR" },
+    { label: "Scent Consultant - HC", value: "Scent Consultant - HC" },
+    { label: "Tech Support - AR", value: "Tech Support - AR" },
+    { label: "Tech Support - HC", value: "Tech Support - HC" },
+    { label: "Hotel Collection Distributor", value: "Hotel Collection Distributor" },
+  ];
+
+  const EVENT_TYPE = [
+    { label: "Lead", value: "Lead" },
+    { label: "Support", value: "Support" },
+  ];
+
   const createMutation = trpc.viewer.eventTypes.create.useMutation({
     onSuccess: async ({ eventType }) => {
       await router.replace("/event-types/" + eventType.id);
@@ -126,19 +156,18 @@ export default function CreateEventTypeDialog({
       }
 
       if (err.data?.code === "BAD_REQUEST") {
-        const message = `${err.data.code}: ${t("error_event_type_url_duplicate")}`;
+        const message = `${err.data.code}: URL already exists.`;
         showToast(message, "error");
       }
 
       if (err.data?.code === "UNAUTHORIZED") {
-        const message = `${err.data.code}: ${t("error_event_type_unauthorized_create")}`;
+        const message = `${err.data.code}: You are not able to create this event`;
         showToast(message, "error");
       }
     },
   });
 
   const flags = useFlagMap();
-  const urlPrefix = orgBranding?.fullDomain ?? process.env.NEXT_PUBLIC_WEBSITE_URL;
 
   return (
     <Dialog
@@ -163,7 +192,7 @@ export default function CreateEventTypeDialog({
           handleSubmit={(values) => {
             createMutation.mutate(values);
           }}>
-          <div className="mt-3 space-y-6 pb-11">
+          <div className="mt-3 space-y-6 pb-10">
             {teamId && (
               <TextField
                 type="hidden"
@@ -184,10 +213,70 @@ export default function CreateEventTypeDialog({
               }}
             />
 
-            {urlPrefix && urlPrefix.length >= 21 ? (
+            {/* <TextField
+              label="Lead Id"
+              placeholder={'Lead Id'}
+              {...register("leadId")}
+              onChange={(e) => {
+                form.setValue("leadId", e?.target.value);
+                if (form.formState.touchedFields["slug"] === undefined) {
+                  form.setValue("slug", slugify(e?.target.value));
+                }
+              }}
+            /> */}
+
+            <label className="text-default block text-sm font-medium tracking-wide" htmlFor="role">
+              Business Unit
+            </label>
+            <Select
+              isSearchable={false}
+              options={BUSINESS_UNIT}
+              onChange={(option) => {
+                option && form.setValue("businessUnit", option.value || "");
+                if (form.formState.touchedFields["slug"] === undefined) {
+                  form.setValue("slug", slugify(option && option.value ? option.value : ""));
+                }
+              }}
+              className="border-default block w-full rounded-md text-sm"
+            />
+
+            {/* Customer Chasing, Follow up */}
+            <label className="text-default block text-sm font-medium tracking-wide" htmlFor="role">
+              Calendar Name
+            </label>
+            <Select
+              isSearchable={false}
+              options={CALENDAR_TYPE}
+              onChange={(option) => {
+                option && form.setValue("calendarName", option.value || "");
+                if (form.formState.touchedFields["slug"] === undefined) {
+                  form.setValue("slug", slugify(option && option.value ? option.value : ""));
+                }
+              }}
+              className="border-default block w-full rounded-md text-sm"
+            />
+
+            <label className="text-default block text-sm font-medium tracking-wide" htmlFor="role">
+              Event Type
+            </label>
+            <Select
+              isSearchable={false}
+              options={EVENT_TYPE}
+              name="eventType"
+              onChange={(option) => {
+                option && form.setValue("eventType", option.value || "");
+                if (form.formState.touchedFields["slug"] === undefined) {
+                  form.setValue("slug", slugify(option && option.value ? option.value : ""));
+                }
+              }}
+              className="border-default block w-full rounded-md text-sm"
+            />
+
+            {process.env.NEXT_PUBLIC_WEBSITE_URL !== undefined &&
+            process.env.NEXT_PUBLIC_WEBSITE_URL?.length >= 21 ? (
               <div>
                 <TextField
-                  label={`${t("url")}: ${urlPrefix}`}
+                  label={`${t("url")}: ${process.env.NEXT_PUBLIC_WEBSITE_URL}`}
                   required
                   addOnLeading={<>/{!isManagedEventType ? pageSlug : t("username_placeholder")}/</>}
                   {...register("slug")}
@@ -207,7 +296,8 @@ export default function CreateEventTypeDialog({
                   required
                   addOnLeading={
                     <>
-                      {urlPrefix}/{!isManagedEventType ? pageSlug : t("username_placeholder")}/
+                      {process.env.NEXT_PUBLIC_WEBSITE_URL}/
+                      {!isManagedEventType ? pageSlug : t("username_placeholder")}/
                     </>
                   }
                   {...register("slug")}
@@ -234,7 +324,7 @@ export default function CreateEventTypeDialog({
                     required
                     min="10"
                     placeholder="15"
-                    label={t("duration")}
+                    label={t("length")}
                     className="pr-4"
                     {...register("length", { valueAsNumber: true })}
                     addOnSuffix={t("minutes")}
@@ -256,6 +346,7 @@ export default function CreateEventTypeDialog({
                   />
                 )}
                 <RadioArea.Group
+                  value={SchedulingType.ROUND_ROBIN}
                   onValueChange={(val: SchedulingType) => {
                     form.setValue("schedulingType", val);
                   }}
@@ -263,14 +354,14 @@ export default function CreateEventTypeDialog({
                     "mt-1 flex gap-4",
                     isAdmin && flags["managed-event-types"] && "flex-col"
                   )}>
-                  <RadioArea.Item
+                  {/* <RadioArea.Item
                     {...register("schedulingType")}
                     value={SchedulingType.COLLECTIVE}
                     className={classNames("w-full text-sm", !isAdmin && "w-1/2")}
                     classNames={{ container: classNames(isAdmin && "w-full") }}>
                     <strong className="mb-1 block">{t("collective")}</strong>
                     <p>{t("collective_description")}</p>
-                  </RadioArea.Item>
+                  </RadioArea.Item> */}
                   <RadioArea.Item
                     {...register("schedulingType")}
                     value={SchedulingType.ROUND_ROBIN}
@@ -279,7 +370,7 @@ export default function CreateEventTypeDialog({
                     <strong className="mb-1 block">{t("round_robin")}</strong>
                     <p>{t("round_robin_description")}</p>
                   </RadioArea.Item>
-                  <>
+                  {/* <>
                     {isAdmin && flags["managed-event-types"] && (
                       <RadioArea.Item
                         {...register("schedulingType")}
@@ -290,7 +381,7 @@ export default function CreateEventTypeDialog({
                         <p>{t("managed_event_description")}</p>
                       </RadioArea.Item>
                     )}
-                  </>
+                  </> */}
                 </RadioArea.Group>
               </div>
             )}

@@ -1,13 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import type { BaseSyntheticEvent } from "react";
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { ErrorCode } from "@calcom/features/auth/lib/ErrorCode";
 import { getLayout } from "@calcom/features/settings/layouts/SettingsLayout";
-import { APP_NAME, FULL_NAME_LENGTH_MAX_LIMIT } from "@calcom/lib/constants";
+import { FULL_NAME_LENGTH_MAX_LIMIT } from "@calcom/lib/constants";
+import { APP_NAME } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { md } from "@calcom/lib/markdownIt";
 import turndown from "@calcom/lib/turndownService";
@@ -24,7 +25,6 @@ import {
   DialogContent,
   DialogFooter,
   DialogTrigger,
-  Editor,
   Form,
   ImageUploader,
   Label,
@@ -36,6 +36,7 @@ import {
   SkeletonContainer,
   SkeletonText,
   TextField,
+  Editor,
 } from "@calcom/ui";
 import { AlertTriangle, Trash2 } from "@calcom/ui/components/icon";
 
@@ -47,9 +48,9 @@ const SkeletonLoader = ({ title, description }: { title: string; description: st
   return (
     <SkeletonContainer>
       <Meta title={title} description={description} />
-      <div className="mb-8 space-y-6">
+      <div className="mt-6 mb-8 space-y-6">
         <div className="flex items-center">
-          <SkeletonAvatar className="me-4 mt-0 h-16 w-16 px-4" />
+          <SkeletonAvatar className="h-12 w-12 px-4" />
           <SkeletonButton className="h-6 w-32 rounded-md p-5" />
         </div>
         <SkeletonText className="h-8 w-full" />
@@ -77,25 +78,13 @@ type FormValues = {
 const ProfileView = () => {
   const { t } = useLocale();
   const utils = trpc.useContext();
-  const { update } = useSession();
-
   const { data: user, isLoading } = trpc.viewer.me.useQuery();
-  const updateProfileMutation = trpc.viewer.updateProfile.useMutation({
-    onSuccess: async (res) => {
-      await update(res);
+  const { data: avatar, isLoading: isLoadingAvatar } = trpc.viewer.avatar.useQuery();
+  const mutation = trpc.viewer.updateProfile.useMutation({
+    onSuccess: () => {
       showToast(t("settings_updated_successfully"), "success");
-
-      // signout user only in case of password reset
-      if (res.signOutUser && tempFormValues && res.passwordReset) {
-        showToast(t("password_reset_email", { email: tempFormValues.email }), "success");
-        await signOut({ callbackUrl: "/auth/logout?passReset=true" });
-      } else {
-        utils.viewer.me.invalidate();
-        utils.viewer.avatar.invalidate();
-        utils.viewer.shouldVerifyEmail.invalidate();
-      }
-
-      setConfirmAuthEmailChangeWarningDialogOpen(false);
+      utils.viewer.me.invalidate();
+      utils.viewer.avatar.invalidate();
       setTempFormValues(null);
     },
     onError: () => {
@@ -106,8 +95,6 @@ const ProfileView = () => {
   const [confirmPasswordOpen, setConfirmPasswordOpen] = useState(false);
   const [tempFormValues, setTempFormValues] = useState<FormValues | null>(null);
   const [confirmPasswordErrorMessage, setConfirmPasswordDeleteErrorMessage] = useState("");
-  const [confirmAuthEmailChangeWarningDialogOpen, setConfirmAuthEmailChangeWarningDialogOpen] =
-    useState(false);
 
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [hasDeleteErrors, setHasDeleteErrors] = useState(false);
@@ -128,7 +115,7 @@ const ProfileView = () => {
 
   const confirmPasswordMutation = trpc.viewer.auth.verifyPassword.useMutation({
     onSuccess() {
-      if (tempFormValues) updateProfileMutation.mutate(tempFormValues);
+      if (tempFormValues) mutation.mutate(tempFormValues);
       setConfirmPasswordOpen(false);
     },
     onError() {
@@ -155,7 +142,7 @@ const ProfileView = () => {
     },
   });
 
-  const isCALIdentityProvider = user?.identityProvider === IdentityProvider.CAL;
+  const isCALIdentityProviver = user?.identityProvider === IdentityProvider.CAL;
 
   const onConfirmPassword = (e: Event | React.MouseEvent<HTMLElement, MouseEvent>) => {
     e.preventDefault();
@@ -164,15 +151,9 @@ const ProfileView = () => {
     confirmPasswordMutation.mutate({ passwordInput: password });
   };
 
-  const onConfirmAuthEmailChange = (e: Event | React.MouseEvent<HTMLElement, MouseEvent>) => {
-    e.preventDefault();
-
-    if (tempFormValues) updateProfileMutation.mutate(tempFormValues);
-  };
-
   const onConfirmButton = (e: Event | React.MouseEvent<HTMLElement, MouseEvent>) => {
     e.preventDefault();
-    if (isCALIdentityProvider) {
+    if (isCALIdentityProviver) {
       const totpCode = form.getValues("totpCode");
       const password = passwordRef.current.value;
       deleteMeMutation.mutate({ password, totpCode });
@@ -183,7 +164,7 @@ const ProfileView = () => {
 
   const onConfirm = ({ totpCode }: DeleteAccountValues, e: BaseSyntheticEvent | undefined) => {
     e?.preventDefault();
-    if (isCALIdentityProvider) {
+    if (isCALIdentityProviver) {
       const password = passwordRef.current.value;
       deleteMeMutation.mutate({ password, totpCode });
     } else {
@@ -203,14 +184,14 @@ const ProfileView = () => {
     [ErrorCode.ThirdPartyIdentityProviderEnabled]: t("account_created_with_identity_provider"),
   };
 
-  if (isLoading || !user)
+  if (isLoading || !user || isLoadingAvatar || !avatar)
     return (
       <SkeletonLoader title={t("profile")} description={t("profile_description", { appName: APP_NAME })} />
     );
 
   const defaultValues = {
     username: user.username || "",
-    avatar: user.avatar || "",
+    avatar: avatar.avatar || "",
     name: user.name || "",
     email: user.email || "",
     bio: user.bio || "",
@@ -222,22 +203,19 @@ const ProfileView = () => {
       <ProfileForm
         key={JSON.stringify(defaultValues)}
         defaultValues={defaultValues}
-        isLoading={updateProfileMutation.isLoading}
+        isLoading={mutation.isLoading}
         onSubmit={(values) => {
-          if (values.email !== user.email && isCALIdentityProvider) {
+          if (values.email !== user.email && isCALIdentityProviver) {
             setTempFormValues(values);
             setConfirmPasswordOpen(true);
-          } else if (values.email !== user.email && !isCALIdentityProvider) {
-            setTempFormValues(values);
-            // Opens a dialog warning the change
-            setConfirmAuthEmailChangeWarningDialogOpen(true);
           } else {
-            updateProfileMutation.mutate(values);
+            mutation.mutate(values);
           }
         }}
         extraField={
           <div className="mt-8">
             <UsernameAvailabilityField
+              user={user}
               onSuccessMutation={async () => {
                 showToast(t("settings_updated_successfully"), "success");
                 await utils.viewer.me.invalidate();
@@ -266,38 +244,36 @@ const ProfileView = () => {
           type="creation"
           Icon={AlertTriangle}>
           <>
-            <div className="mb-10">
-              <p className="text-default mb-4">
-                {t("delete_account_confirmation_message", { appName: APP_NAME })}
-              </p>
-              {isCALIdentityProvider && (
-                <PasswordField
-                  data-testid="password"
-                  name="password"
-                  id="password"
-                  autoComplete="current-password"
-                  required
-                  label="Password"
-                  ref={passwordRef}
-                />
-              )}
+            <p className="text-default mb-7">
+              {t("delete_account_confirmation_message", { appName: APP_NAME })}
+            </p>
+            {isCALIdentityProviver && (
+              <PasswordField
+                data-testid="password"
+                name="password"
+                id="password"
+                autoComplete="current-password"
+                required
+                label="Password"
+                ref={passwordRef}
+              />
+            )}
 
-              {user?.twoFactorEnabled && isCALIdentityProvider && (
-                <Form handleSubmit={onConfirm} className="pb-4" form={form}>
-                  <TwoFactor center={false} />
-                </Form>
-              )}
+            {user?.twoFactorEnabled && isCALIdentityProviver && (
+              <Form handleSubmit={onConfirm} className="pb-4" form={form}>
+                <TwoFactor center={false} />
+              </Form>
+            )}
 
-              {hasDeleteErrors && <Alert severity="error" title={deleteErrorMessage} />}
-            </div>
-            <DialogFooter showDivider>
-              <DialogClose />
+            {hasDeleteErrors && <Alert severity="error" title={deleteErrorMessage} />}
+            <DialogFooter>
               <Button
                 color="primary"
                 data-testid="delete-account-confirm"
                 onClick={(e) => onConfirmButton(e)}>
                 {t("delete_my_account")}
               </Button>
+              <DialogClose />
             </DialogFooter>
           </>
         </DialogContent>
@@ -310,7 +286,7 @@ const ProfileView = () => {
           description={t("confirm_password_change_email")}
           type="creation"
           Icon={AlertTriangle}>
-          <div className="mb-10">
+          <>
             <PasswordField
               data-testid="password"
               name="password"
@@ -322,37 +298,13 @@ const ProfileView = () => {
             />
 
             {confirmPasswordErrorMessage && <Alert severity="error" title={confirmPasswordErrorMessage} />}
-          </div>
-          <DialogFooter showDivider>
-            <Button
-              color="primary"
-              loading={confirmPasswordMutation.isLoading}
-              onClick={(e) => onConfirmPassword(e)}>
-              {t("confirm")}
-            </Button>
-            <DialogClose />
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* If changing email from !CAL Login */}
-      <Dialog
-        open={confirmAuthEmailChangeWarningDialogOpen}
-        onOpenChange={setConfirmAuthEmailChangeWarningDialogOpen}>
-        <DialogContent
-          title={t("confirm_auth_change")}
-          description={t("confirm_auth_email_change")}
-          type="creation"
-          Icon={AlertTriangle}>
-          <DialogFooter>
-            <Button
-              color="primary"
-              loading={updateProfileMutation.isLoading}
-              onClick={(e) => onConfirmAuthEmailChange(e)}>
-              {t("confirm")}
-            </Button>
-            <DialogClose />
-          </DialogFooter>
+            <DialogFooter>
+              <Button color="primary" onClick={(e) => onConfirmPassword(e)}>
+                {t("confirm")}
+              </Button>
+              <DialogClose />
+            </DialogFooter>
+          </>
         </DialogContent>
       </Dialog>
     </>
@@ -378,8 +330,7 @@ const ProfileForm = ({
     avatar: z.string(),
     name: z
       .string()
-      .trim()
-      .min(1, t("you_need_to_add_a_name"))
+      .min(1)
       .max(FULL_NAME_LENGTH_MAX_LIMIT, {
         message: t("max_limit_allowed_hint", { limit: FULL_NAME_LENGTH_MAX_LIMIT }),
       }),

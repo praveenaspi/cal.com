@@ -7,14 +7,11 @@ import { handleConfirmation } from "@calcom/features/bookings/lib/handleConfirma
 import { handleWebhookTrigger } from "@calcom/features/bookings/lib/handleWebhookTrigger";
 import type { EventTypeInfo } from "@calcom/features/webhooks/lib/sendPayload";
 import { isPrismaObjOrUndefined, parseRecurringEvent } from "@calcom/lib";
-import { getTeamIdFromEventType } from "@calcom/lib/getTeamIdFromEventType";
 import { getTranslation } from "@calcom/lib/server";
-import { getUsersCredentials } from "@calcom/lib/server/getUsersCredentials";
-import { getTimeFormatStringFromUserTimeFormat } from "@calcom/lib/timeFormat";
 import { prisma } from "@calcom/prisma";
 import { BookingStatus, MembershipRole, SchedulingType, WebhookTriggerEvents } from "@calcom/prisma/enums";
 import type { CalendarEvent } from "@calcom/types/Calendar";
-import type { IAbstractPaymentService, PaymentApp } from "@calcom/types/PaymentService";
+import type { IAbstractPaymentService } from "@calcom/types/PaymentService";
 
 import { TRPCError } from "@trpc/server";
 
@@ -55,6 +52,10 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
           teamId: true,
           recurringEvent: true,
           title: true,
+          // leadId: true,
+          eventType: true,
+          businessUnit: true,
+          calendarName: true,
           requiresConfirmation: true,
           currency: true,
           length: true,
@@ -73,7 +74,6 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
             },
           },
           customInputs: true,
-          parentId: true,
         },
       },
       location: true,
@@ -166,12 +166,15 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
       name: user.name || "Unnamed",
       username: user.username || undefined,
       timeZone: user.timeZone,
-      timeFormat: getTimeFormatStringFromUserTimeFormat(user.timeFormat),
       language: { translate: tOrganizer, locale: user.locale ?? "en" },
     },
     attendees: attendeesList,
     location: booking.location ?? "",
     uid: booking.uid,
+    // leadId: booking.eventType?.leadId || null,
+    eventType: booking.eventType?.eventType || null,
+    businessUnit: booking.eventType?.businessUnit || null,
+    calendarName: booking.eventType?.calendarName || null,
     destinationCalendar: booking?.destinationCalendar || user.destinationCalendar,
     requiresConfirmation: booking?.eventType?.requiresConfirmation ?? false,
     eventTypeId: booking.eventType?.id,
@@ -213,19 +216,7 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
   }
 
   if (confirmed) {
-    const credentials = await getUsersCredentials(user.id);
-    const userWithCredentials = {
-      ...user,
-      credentials,
-    };
-    await handleConfirmation({
-      user: userWithCredentials,
-      evt,
-      recurringEventId,
-      prisma,
-      bookingId,
-      booking,
-    });
+    await handleConfirmation({ user, evt, recurringEventId, prisma, bookingId, booking });
   } else {
     evt.rejectionReason = rejectionReason;
     if (recurringEventId) {
@@ -294,10 +285,8 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
           }
 
           // Posible to refactor TODO:
-          const paymentApp = (await appStore[
-            paymentAppCredential?.app?.dirName as keyof typeof appStore
-          ]()) as PaymentApp;
-          if (!paymentApp?.lib?.PaymentService) {
+          const paymentApp = await appStore[paymentAppCredential?.app?.dirName as keyof typeof appStore]();
+          if (!(paymentApp && "lib" in paymentApp && "PaymentService" in paymentApp.lib)) {
             console.warn(`payment App service of type ${paymentApp} is not implemented`);
             return null;
           }
@@ -325,20 +314,12 @@ export const confirmHandler = async ({ ctx, input }: ConfirmOptions) => {
     }
 
     await sendDeclinedEmails(evt);
-
-    const teamId = await getTeamIdFromEventType({
-      eventType: {
-        team: { id: booking.eventType?.teamId ?? null },
-        parentId: booking?.eventType?.parentId ?? null,
-      },
-    });
-
     // send BOOKING_REJECTED webhooks
     const subscriberOptions = {
       userId: booking.userId,
       eventTypeId: booking.eventTypeId,
       triggerEvent: WebhookTriggerEvents.BOOKING_REJECTED,
-      teamId,
+      teamId: booking.eventType?.teamId,
     };
     const eventTrigger: WebhookTriggerEvents = WebhookTriggerEvents.BOOKING_REJECTED;
     const eventTypeInfo: EventTypeInfo = {

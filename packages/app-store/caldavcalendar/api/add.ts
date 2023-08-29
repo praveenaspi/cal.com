@@ -27,7 +27,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         process.env.CALENDSO_ENCRYPTION_KEY || ""
       ),
       userId: user.id,
-      teamId: null,
       appId: "caldav-calendar",
       invalid: false,
     };

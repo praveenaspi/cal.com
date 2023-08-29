@@ -4,7 +4,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import dayjs from "@calcom/dayjs";
 import { getCalEventResponses } from "@calcom/features/bookings/lib/getCalEventResponses";
 import { defaultHandler } from "@calcom/lib/server";
-import { getTimeFormatStringFromUserTimeFormat } from "@calcom/lib/timeFormat";
 import prisma from "@calcom/prisma";
 import { WorkflowActions, WorkflowMethods, WorkflowTemplates } from "@calcom/prisma/enums";
 import { bookingMetadataSchema } from "@calcom/prisma/zod-utils";
@@ -53,10 +52,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     },
   });
 
-  if (!unscheduledReminders.length) {
-    res.json({ ok: true });
-    return;
-  }
+  if (!unscheduledReminders.length) res.json({ ok: true });
 
   for (const reminder of unscheduledReminders) {
     if (!reminder.workflowStep || !reminder.booking) {
@@ -117,15 +113,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const customMessage = customTemplate(
           reminder.workflowStep.reminderBody || "",
           variables,
-          locale || "en",
-          getTimeFormatStringFromUserTimeFormat(reminder.booking.user?.timeFormat)
+          locale || ""
         );
         message = customMessage.text;
       } else if (reminder.workflowStep.template === WorkflowTemplates.REMINDER) {
         message = smsReminderTemplate(
           false,
           reminder.workflowStep.action,
-          getTimeFormatStringFromUserTimeFormat(reminder.booking.user?.timeFormat),
           reminder.booking?.startTime.toISOString() || "",
           reminder.booking?.eventType?.title || "",
           timeZone || "",

@@ -19,13 +19,7 @@ type UpdateOptions = {
 };
 
 export const updateHandler = async ({ ctx, input }: UpdateOptions) => {
-  const isOrgAdmin = ctx.user?.organization?.isOrgAdmin;
-
-  if (!isOrgAdmin) {
-    if (!(await isTeamAdmin(ctx.user?.id, input.id))) {
-      throw new TRPCError({ code: "UNAUTHORIZED" });
-    }
-  }
+  if (!(await isTeamAdmin(ctx.user?.id, input.id))) throw new TRPCError({ code: "UNAUTHORIZED" });
 
   if (input.slug) {
     const userConflict = await prisma.team.findMany({
@@ -49,7 +43,6 @@ export const updateHandler = async ({ ctx, input }: UpdateOptions) => {
     logo: input.logo,
     bio: input.bio,
     hideBranding: input.hideBranding,
-    isPrivate: input.isPrivate,
     hideBookATeamMember: input.hideBookATeamMember,
     brandColor: input.brandColor,
     darkBrandColor: input.darkBrandColor,

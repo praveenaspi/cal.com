@@ -1,8 +1,8 @@
 import z from "zod";
 
-import { AppCategories } from "@calcom/prisma/enums";
+import { InstalledAppVariants } from "../utils";
 
-const variantSchema = z.nativeEnum(AppCategories);
+const variantSchema = z.enum(InstalledAppVariants);
 
 export default function getInstalledAppPath(
   { variant, slug }: { variant?: string; slug?: string },

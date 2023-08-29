@@ -1,5 +1,4 @@
 import { addDecorator } from "@storybook/react";
-import { AppRouterContext } from "next/dist/shared/lib/app-router-context";
 import { I18nextProvider } from "react-i18next";
 
 import "../styles/globals.css";
@@ -14,21 +13,6 @@ export const parameters = {
       date: /Date$/,
     },
   },
-  nextRouter: {
-    pathname: "/",
-    asPath: "/",
-    query: {},
-    push() {},
-    Provider: AppRouterContext.Provider,
-  },
-  globals: {
-    locale: "en",
-    locales: {
-      en: "English",
-      fr: "Français",
-    },
-  },
-  i18n,
 };
 
 addDecorator((storyFn) => (

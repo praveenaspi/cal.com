@@ -1,4 +1,4 @@
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { trpc } from "@calcom/trpc/react";
@@ -31,7 +31,7 @@ export function TeamsUpgradeBanner() {
           onClick={() => {
             publishTeamMutation.mutate({ teamId: membership.team.id });
           }}>
-          {t("upgrade_banner_action")}
+          {t("team_upgrade_banner_action")}
         </button>
       }
     />

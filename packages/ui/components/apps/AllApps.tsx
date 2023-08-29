@@ -1,10 +1,8 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
-import type { AppCategories } from "@prisma/client";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
+import { useRouter } from "next/router";
 import type { UIEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import type { UserAdminTeams } from "@calcom/features/ee/teams/lib/getUserAdminTeams";
 import { classNames } from "@calcom/lib";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import type { AppFrontendPayload as App } from "@calcom/types/App";
@@ -44,7 +42,6 @@ type AllAppsPropsType = {
   apps: (App & { credentials?: Credential[] })[];
   searchText?: string;
   categories: string[];
-  userAdminTeams?: UserAdminTeams;
 };
 
 interface CategoryTabProps {
@@ -54,8 +51,6 @@ interface CategoryTabProps {
 }
 
 function CategoryTab({ selectedCategory, categories, searchText }: CategoryTabProps) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { t } = useLocale();
   const router = useRouter();
   const { ref, calculateScroll, leftVisible, rightVisible } = useShouldShowArrows();
@@ -78,11 +73,11 @@ function CategoryTab({ selectedCategory, categories, searchText }: CategoryTabPr
           : t("category_apps", {
               category:
                 (selectedCategory && selectedCategory[0].toUpperCase() + selectedCategory.slice(1)) ||
-                t("all"),
+                t("all_apps"),
             })}
       </h2>
       {leftVisible && (
-        <button onClick={handleLeft} className="absolute bottom-0 flex md:-top-1 md:left-1/2">
+        <button onClick={handleLeft} className="absolute bottom-0 flex md:left-1/2 md:-top-1">
           <div className="bg-default flex h-12 w-5 items-center justify-end">
             <ChevronLeft className="text-subtle h-4 w-4" />
           </div>
@@ -95,24 +90,24 @@ function CategoryTab({ selectedCategory, categories, searchText }: CategoryTabPr
         ref={ref}>
         <li
           onClick={() => {
-            router.replace(pathname);
+            router.replace(router.asPath.split("?")[0], undefined, { shallow: true });
           }}
           className={classNames(
             selectedCategory === null ? "bg-emphasis text-default" : "bg-muted text-emphasis",
             "hover:bg-emphasis min-w-max rounded-md px-4 py-2.5 text-sm font-medium hover:cursor-pointer"
           )}>
-          {t("all")}
+          {t("all_apps")}
         </li>
         {categories.map((cat, pos) => (
           <li
             key={pos}
             onClick={() => {
               if (selectedCategory === cat) {
-                router.replace(pathname);
+                router.replace(router.asPath.split("?")[0], undefined, { shallow: true });
               } else {
-                const _searchParams = new URLSearchParams(searchParams);
-                _searchParams.set("category", cat);
-                router.replace(`${pathname}?${_searchParams.toString()}`);
+                router.replace(router.asPath.split("?")[0] + `?category=${cat}`, undefined, {
+                  shallow: true,
+                });
               }
             }}
             className={classNames(
@@ -135,29 +130,30 @@ function CategoryTab({ selectedCategory, categories, searchText }: CategoryTabPr
   );
 }
 
-export function AllApps({ apps, searchText, categories, userAdminTeams }: AllAppsPropsType) {
-  const searchParams = useSearchParams();
+export function AllApps({ apps, searchText, categories }: AllAppsPropsType) {
+  const router = useRouter();
   const { t } = useLocale();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [appsContainerRef, enableAnimation] = useAutoAnimate<HTMLDivElement>();
-  const categoryQuery = searchParams?.get("category");
+  // const [appsContainerRef, enableAnimation] = useAutoAnimate<HTMLDivElement>();
 
-  if (searchText) {
-    enableAnimation && enableAnimation(false);
-  }
+  // if (searchText) {
+  //   enableAnimation && enableAnimation(false);
+  // }
 
   useEffect(() => {
     const queryCategory =
-      typeof categoryQuery === "string" && categories.includes(categoryQuery) ? categoryQuery : null;
+      typeof router.query.category === "string" && categories.includes(router.query.category)
+        ? router.query.category
+        : null;
     setSelectedCategory(queryCategory);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryQuery]);
+  }, [router.query.category]);
 
   const filteredApps = apps
     .filter((app) =>
       selectedCategory !== null
         ? app.categories
-          ? app.categories.includes(selectedCategory as AppCategories)
+          ? app.categories.includes(selectedCategory)
           : app.category === selectedCategory
         : true
     )
@@ -173,16 +169,10 @@ export function AllApps({ apps, searchText, categories, userAdminTeams }: AllApp
       <CategoryTab selectedCategory={selectedCategory} searchText={searchText} categories={categories} />
       {filteredApps.length ? (
         <div
-          className="grid gap-3 lg:grid-cols-4 [@media(max-width:1270px)]:grid-cols-3 [@media(max-width:500px)]:grid-cols-1 [@media(max-width:730px)]:grid-cols-1"
-          ref={appsContainerRef}>
+          className="grid gap-3 lg:grid-cols-4 [@media(max-width:1270px)]:grid-cols-3 [@media(max-width:730px)]:grid-cols-1 [@media(max-width:500px)]:grid-cols-1"
+        >
           {filteredApps.map((app) => (
-            <AppCard
-              key={app.name}
-              app={app}
-              searchText={searchText}
-              credentials={app.credentials}
-              userAdminTeams={userAdminTeams}
-            />
+            <AppCard key={app.name} app={app} searchText={searchText} credentials={app.credentials} />
           ))}{" "}
         </div>
       ) : (

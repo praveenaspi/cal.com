@@ -57,7 +57,7 @@ export const resizeAnimationConfig: ResizeAnimationConfig = {
           "timeslots"
         `,
       gridTemplateColumns: "100%",
-      gridTemplateRows: "minmax(min-content,max-content) 1fr",
+      gridTemplateRows: "auto auto auto auto",
     },
   },
   month_view: {
@@ -70,7 +70,7 @@ export const resizeAnimationConfig: ResizeAnimationConfig = {
       "meta main main"
       `,
       gridTemplateColumns: "var(--booker-meta-width) var(--booker-main-width)",
-      gridTemplateRows: "1fr 0fr",
+      gridTemplateRows: "auto",
     },
     selecting_time: {
       width: "calc(var(--booker-meta-width) + var(--booker-main-width) + var(--booker-timeslots-width))",
@@ -81,14 +81,14 @@ export const resizeAnimationConfig: ResizeAnimationConfig = {
       "meta main timeslots"
       `,
       gridTemplateColumns: "var(--booker-meta-width) 1fr var(--booker-timeslots-width)",
-      gridTemplateRows: "1fr 0fr",
+      gridTemplateRows: "auto",
     },
   },
   week_view: {
     default: {
       width: "100vw",
-      minHeight: "100vh",
-      height: "auto",
+      minHeight: "450px",
+      height: "100vh",
       gridTemplateAreas: `
       "meta header header"
       "meta main main"
@@ -100,8 +100,8 @@ export const resizeAnimationConfig: ResizeAnimationConfig = {
   column_view: {
     default: {
       width: "100vw",
-      minHeight: "100vh",
-      height: "auto",
+      minHeight: "450px",
+      height: "100vh",
       gridTemplateAreas: `
       "meta header header"
       "meta main main"
@@ -112,38 +112,25 @@ export const resizeAnimationConfig: ResizeAnimationConfig = {
   },
 };
 
-export const getBookerSizeClassNames = (
-  layout: BookerLayout,
-  bookerState: BookerState,
-  hideEventTypeDetails = false
-) => {
-  const getBookerMetaClass = (className: string) => {
-    if (hideEventTypeDetails) {
-      return "";
-    }
-    return className;
-  };
-
+export const getBookerSizeClassNames = (layout: BookerLayout, bookerState: BookerState) => {
   return [
-    // Size settings are abstracted on their own lines purely for readability.
+    // Size settings are abstracted on their own lines purely for readbility.
     // General sizes, used always
     "[--booker-timeslots-width:240px] lg:[--booker-timeslots-width:280px]",
     // Small calendar defaults
-    layout === BookerLayouts.MONTH_VIEW && getBookerMetaClass("[--booker-meta-width:240px]"),
+    layout === BookerLayouts.MONTH_VIEW && "[--booker-meta-width:240px]",
     // Meta column get's wider in booking view to fit the full date on a single row in case
     // of a multi occurance event. Also makes form less wide, which also looks better.
     layout === BookerLayouts.MONTH_VIEW &&
       bookerState === "booking" &&
-      `[--booker-main-width:420px] ${getBookerMetaClass("lg:[--booker-meta-width:340px]")}`,
+      "[--booker-main-width:420px] lg:[--booker-meta-width:340px]",
     // Smaller meta when not in booking view.
     layout === BookerLayouts.MONTH_VIEW &&
       bookerState !== "booking" &&
-      `[--booker-main-width:480px] ${getBookerMetaClass("lg:[--booker-meta-width:280px]")}`,
+      "[--booker-main-width:480px] lg:[--booker-meta-width:280px]",
     // Fullscreen view settings.
     layout !== BookerLayouts.MONTH_VIEW &&
-      `[--booker-main-width:480px] [--booker-meta-width:340px] ${getBookerMetaClass(
-        "lg:[--booker-meta-width:424px]"
-      )}`,
+      "[--booker-main-width:480px] [--booker-meta-width:340px] lg:[--booker-meta-width:424px]",
   ];
 };
 
@@ -155,8 +142,7 @@ export const getBookerSizeClassNames = (
 export const useBookerResizeAnimation = (layout: BookerLayout, state: BookerState) => {
   const prefersReducedMotion = useReducedMotion();
   const [animationScope, animate] = useAnimate();
-  const isEmbed = typeof window !== "undefined" && window?.isEmbed?.();
-  ``;
+
   useEffect(() => {
     const animationConfig = resizeAnimationConfig[layout][state] || resizeAnimationConfig[layout].default;
 
@@ -177,18 +163,12 @@ export const useBookerResizeAnimation = (layout: BookerLayout, state: BookerStat
       minHeight: animationConfig?.minHeight,
     };
 
-    // In this cases we don't animate the booker at all.
-    if (prefersReducedMotion || layout === "mobile" || isEmbed) {
+    // We don't animate if users has set prefers-reduced-motion,
+    // or when the layout is mobile.
+    if (prefersReducedMotion || layout === "mobile") {
       const styles = { ...nonAnimatedProperties, ...animatedProperties };
       Object.keys(styles).forEach((property) => {
-        if (property === "height") {
-          // Change 100vh to 100% in embed, since 100vh in iframe will behave weird, because
-          // the iframe will constantly grow. 100% will simply make sure it grows with the iframe.
-          animationScope.current.style.height =
-            animatedProperties.height === "100vh" && isEmbed ? "100%" : animatedProperties.height;
-        } else {
-          animationScope.current.style[property] = styles[property as keyof typeof styles];
-        }
+        animationScope.current.style[property] = styles[property as keyof typeof styles];
       });
     } else {
       Object.keys(nonAnimatedProperties).forEach((property) => {
@@ -200,7 +180,7 @@ export const useBookerResizeAnimation = (layout: BookerLayout, state: BookerStat
         ease: cubicBezier(0.4, 0, 0.2, 1),
       });
     }
-  }, [animate, isEmbed, animationScope, layout, prefersReducedMotion, state]);
+  }, [animate, animationScope, layout, prefersReducedMotion, state]);
 
   return animationScope;
 };
@@ -224,7 +204,7 @@ export const extraDaysConfig = {
     tablet: 4,
   },
   [BookerLayouts.COLUMN_VIEW]: {
-    desktop: 6,
+    desktop: 4,
     tablet: 2,
   },
 };

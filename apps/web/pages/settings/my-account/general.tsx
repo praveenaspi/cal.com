@@ -1,9 +1,9 @@
-import { useSession } from "next-auth/react";
+import { useRouter } from "next/router";
+import { useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { getLayout } from "@calcom/features/settings/layouts/SettingsLayout";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
-import { localeOptions } from "@calcom/lib/i18n";
 import { nameOfDay } from "@calcom/lib/weekday";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
@@ -21,13 +21,15 @@ import {
   TimezoneSelect,
 } from "@calcom/ui";
 
+import { withQuery } from "@lib/QueryCell";
+
 import PageWrapper from "@components/PageWrapper";
 
 const SkeletonLoader = ({ title, description }: { title: string; description: string }) => {
   return (
     <SkeletonContainer>
       <Meta title={title} description={description} />
-      <div className="mb-8 mt-6 space-y-6">
+      <div className="mt-6 mb-8 space-y-6">
         <SkeletonText className="h-8 w-full" />
         <SkeletonText className="h-8 w-full" />
         <SkeletonText className="h-8 w-full" />
@@ -44,6 +46,11 @@ interface GeneralViewProps {
   user: RouterOutputs["viewer"]["me"];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const WithQuery = withQuery(trpc.viewer.public.i18n as any, undefined, {
+  trpc: { context: { skipBatch: true } },
+});
+
 const GeneralQueryView = () => {
   const { t } = useLocale();
 
@@ -52,28 +59,40 @@ const GeneralQueryView = () => {
   if (!user) {
     throw new Error(t("something_went_wrong"));
   }
-  return <GeneralView user={user} localeProp={user.locale} />;
+  return (
+    <WithQuery
+      success={({ data }) => <GeneralView user={user} localeProp={data.locale} />}
+      customLoader={<SkeletonLoader title={t("general")} description={t("general_description")} />}
+    />
+  );
 };
 
 const GeneralView = ({ localeProp, user }: GeneralViewProps) => {
+  const router = useRouter();
   const utils = trpc.useContext();
   const { t } = useLocale();
-  const { update } = useSession();
 
   const mutation = trpc.viewer.updateProfile.useMutation({
-    onSuccess: async (res) => {
-      await utils.viewer.me.invalidate();
+    onSuccess: async () => {
+      // Invalidate our previous i18n cache
+      await utils.viewer.public.i18n.invalidate();
       reset(getValues());
       showToast(t("settings_updated_successfully"), "success");
-      update(res);
     },
     onError: () => {
       showToast(t("error_updating_settings"), "error");
     },
     onSettled: async () => {
-      await utils.viewer.me.invalidate();
+      await utils.viewer.public.i18n.invalidate();
     },
   });
+
+  const localeOptions = useMemo(() => {
+    return (router.locales || []).map((locale) => ({
+      value: locale,
+      label: new Intl.DisplayNames(locale, { type: "language" }).of(locale) || "",
+    }));
+  }, [router.locales]);
 
   const timeFormatOptions = [
     { value: 12, label: t("12_hour") },
@@ -106,7 +125,6 @@ const GeneralView = ({ localeProp, user }: GeneralViewProps) => {
         label: nameOfDay(localeProp, user.weekStart === "Sunday" ? 0 : 1),
       },
       allowDynamicBooking: user.allowDynamicBooking ?? true,
-      allowSEOIndexing: user.allowSEOIndexing ?? true,
     },
   });
   const {
@@ -115,7 +133,6 @@ const GeneralView = ({ localeProp, user }: GeneralViewProps) => {
     getValues,
   } = formMethods;
   const isDisabled = isSubmitting || !isDirty;
-
   return (
     <Form
       form={formMethods}
@@ -217,30 +234,7 @@ const GeneralView = ({ localeProp, user }: GeneralViewProps) => {
           )}
         />
       </div>
-
-      <div className="mt-8">
-        <Controller
-          name="allowSEOIndexing"
-          control={formMethods.control}
-          render={() => (
-            <SettingsToggle
-              title={t("seo_indexing")}
-              description={t("allow_seo_indexing")}
-              checked={formMethods.getValues("allowSEOIndexing")}
-              onCheckedChange={(checked) => {
-                formMethods.setValue("allowSEOIndexing", checked, { shouldDirty: true });
-              }}
-            />
-          )}
-        />
-      </div>
-
-      <Button
-        loading={mutation.isLoading}
-        disabled={isDisabled}
-        color="primary"
-        type="submit"
-        className="mt-8">
+      <Button disabled={isDisabled} color="primary" type="submit" className="mt-8">
         <>{t("update")}</>
       </Button>
     </Form>

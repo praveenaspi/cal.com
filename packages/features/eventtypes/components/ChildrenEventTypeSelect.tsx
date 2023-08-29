@@ -1,4 +1,4 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import type { Props } from "react-select";
 
 import { classNames } from "@calcom/lib";
@@ -35,7 +35,7 @@ export const ChildrenEventTypeSelect = ({
 }) => {
   const { t } = useLocale();
 
-  const [animationRef] = useAutoAnimate<HTMLUListElement>();
+  // const [animationRef] = useAutoAnimate<HTMLUListElement>();
 
   return (
     <>
@@ -54,7 +54,7 @@ export const ChildrenEventTypeSelect = ({
           "border-subtle divide-subtle mt-3 divide-y rounded-md",
           value.length >= 1 && "border"
         )}
-        ref={animationRef}>
+      >
         {value.map((children, index) => (
           <li key={index}>
             <div className="flex flex-row items-center gap-3 p-3">
@@ -62,12 +62,12 @@ export const ChildrenEventTypeSelect = ({
                 size="mdLg"
                 className="overflow-visible"
                 imageSrc={`${CAL_URL}/${children.owner.username}/avatar.png`}
-                alt={children.owner.name || children.owner.email || ""}
+                alt={children.owner.name || ""}
               />
               <div className="flex w-full flex-row justify-between">
                 <div className="flex flex-col">
                   <span className="text text-sm font-semibold leading-none">
-                    {children.owner.name || children.owner.email}
+                    {children.owner.name}
                     <div className="flex flex-row gap-1">
                       {children.owner.membership === MembershipRole.OWNER ? (
                         <Badge variant="gray">{t("owner")}</Badge>
@@ -77,11 +77,9 @@ export const ChildrenEventTypeSelect = ({
                       {children.hidden && <Badge variant="gray">{t("hidden")}</Badge>}
                     </div>
                   </span>
-                  {children.owner.username && (
-                    <small className="text-subtle font-normal leading-normal">
-                      {`/${children.owner.username}/${children.slug}`}
-                    </small>
-                  )}
+                  <small className="text-subtle font-normal leading-normal">
+                    {`/${children.owner.username}/${children.slug}`}
+                  </small>
                 </div>
                 <div className="flex flex-row items-center gap-2">
                   <Tooltip content={t("show_eventtype_on_profile")}>
@@ -99,7 +97,7 @@ export const ChildrenEventTypeSelect = ({
                     </div>
                   </Tooltip>
                   <ButtonGroup combined>
-                    {children.created && children.owner.username && (
+                    {children.created && (
                       <Tooltip content={t("preview")}>
                         <Button
                           color="secondary"

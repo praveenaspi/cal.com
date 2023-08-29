@@ -61,5 +61,3 @@ export const stripeCheckoutSessionHandler = async ({ input }: StripeCheckoutSess
     };
   }
 };
-
-export default stripeCheckoutSessionHandler;

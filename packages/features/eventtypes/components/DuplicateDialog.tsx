@@ -1,5 +1,4 @@
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -11,17 +10,7 @@ import { md } from "@calcom/lib/markdownIt";
 import slugify from "@calcom/lib/slugify";
 import turndown from "@calcom/lib/turndownService";
 import { trpc } from "@calcom/trpc/react";
-import {
-  Button,
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  Form,
-  showToast,
-  TextField,
-  Editor,
-} from "@calcom/ui";
+import { Button, Dialog, DialogClose, DialogContent, Form, showToast, TextField, Editor } from "@calcom/ui";
 
 const querySchema = z.object({
   title: z.string(),
@@ -33,7 +22,6 @@ const querySchema = z.object({
 });
 
 const DuplicateDialog = () => {
-  const searchParams = useSearchParams();
   const { t } = useLocale();
   const router = useRouter();
   const [firstRender, setFirstRender] = useState(true);
@@ -51,17 +39,14 @@ const DuplicateDialog = () => {
   const { register } = form;
 
   useEffect(() => {
-    if (searchParams?.get("dialog") === "duplicate") {
-      form.setValue("id", Number(searchParams?.get("id") as string) || -1);
-      form.setValue("title", (searchParams?.get("title") as string) || "");
-      form.setValue(
-        "slug",
-        t("event_type_duplicate_copy_text", { slug: searchParams?.get("slug") as string })
-      );
-      form.setValue("description", (searchParams?.get("description") as string) || "");
-      form.setValue("length", Number(searchParams?.get("length")) || 30);
+    if (router.query.dialog === "duplicate") {
+      form.setValue("id", Number(router.query.id as string) || -1);
+      form.setValue("title", (router.query.title as string) || "");
+      form.setValue("slug", t("event_type_duplicate_copy_text", { slug: router.query.slug as string }));
+      form.setValue("description", (router.query.description as string) || "");
+      form.setValue("length", Number(router.query.length) || 30);
     }
-  }, [searchParams?.get("dialog")]);
+  }, [router.query.dialog]);
 
   const duplicateMutation = trpc.viewer.eventTypes.duplicate.useMutation({
     onSuccess: async ({ eventType }) => {
@@ -80,7 +65,7 @@ const DuplicateDialog = () => {
       }
 
       if (err.data?.code === "UNAUTHORIZED" || err.data?.code === "FORBIDDEN") {
-        const message = `${err.data.code}: ${t("error_event_type_unauthorized_create")}`;
+        const message = `${err.data.code}: You are not able to create this event`;
         showToast(message, "error");
       }
     },
@@ -96,7 +81,7 @@ const DuplicateDialog = () => {
           handleSubmit={(values) => {
             duplicateMutation.mutate(values);
           }}>
-          <div className="-mt-2 space-y-5">
+          <div className="mt-3 space-y-6">
             <TextField
               label={t("title")}
               placeholder={t("quick_chat")}
@@ -146,20 +131,20 @@ const DuplicateDialog = () => {
               <TextField
                 type="number"
                 required
-                min="1"
+                min="10"
                 placeholder="15"
-                label={t("duration")}
+                label={t("length")}
                 {...register("length", { valueAsNumber: true })}
                 addOnSuffix={t("minutes")}
               />
             </div>
           </div>
-          <DialogFooter showDivider className="mt-10">
-            <DialogClose />
+          <div className="mt-8 flex flex-row-reverse gap-x-2">
             <Button type="submit" loading={duplicateMutation.isLoading}>
               {t("continue")}
             </Button>
-          </DialogFooter>
+            <DialogClose />
+          </div>
         </Form>
       </DialogContent>
     </Dialog>

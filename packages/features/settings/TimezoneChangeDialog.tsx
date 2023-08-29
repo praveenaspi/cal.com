@@ -5,7 +5,6 @@ import dayjs from "@calcom/dayjs";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { trpc } from "@calcom/trpc/react";
 import { Dialog, DialogClose, DialogContent, DialogFooter, showToast } from "@calcom/ui";
-import { IS_VISUAL_REGRESSION_TESTING } from "@calcom/web/constants";
 
 export default function TimezoneChangeDialog() {
   const { t } = useLocale();
@@ -44,7 +43,7 @@ export default function TimezoneChangeDialog() {
     const tzDifferent =
       !isLoading && dayjs.tz(undefined, currentTz).utcOffset() !== dayjs.tz(undefined, userTz).utcOffset();
     const showDialog = tzDifferent && !document.cookie.includes("calcom-timezone-dialog=1");
-    setOpen(!IS_VISUAL_REGRESSION_TESTING && showDialog);
+    setOpen(showDialog);
   }, [currentTz, isLoading, userTz]);
 
   // save cookie to not show again
@@ -71,8 +70,7 @@ export default function TimezoneChangeDialog() {
         {/* todo: save this in db and auto-update when timezone changes (be able to disable??? if yes, /settings)
         <Checkbox description="Always update timezone" />
         */}
-        <div className="mb-8" />
-        <DialogFooter showDivider>
+        <DialogFooter>
           <DialogClose onClick={() => onCancel(THREE_MONTHS, true)} color="secondary">
             {t("dont_update")}
           </DialogClose>

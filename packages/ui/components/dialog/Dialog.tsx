@@ -1,5 +1,5 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
 import type { ReactNode } from "react";
 import React, { useState } from "react";
 
@@ -14,56 +14,44 @@ export type DialogProps = React.ComponentProps<(typeof DialogPrimitive)["Root"]>
   name?: string;
   clearQueryParamsOnClose?: string[];
 };
-
-const enum DIALOG_STATE {
-  // Dialog is there in the DOM but not visible.
-  CLOSED = "CLOSED",
-  // State from the time b/w the Dialog is dismissed and the time the "dialog" query param is removed from the URL.
-  CLOSING = "CLOSING",
-  // Dialog is visible.
-  OPEN = "OPEN",
-}
-
 export function Dialog(props: DialogProps) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const newSearchParams = new URLSearchParams(searchParams);
   const { children, name, ...dialogProps } = props;
-
   // only used if name is set
-  const [dialogState, setDialogState] = useState(dialogProps.open ? DIALOG_STATE.OPEN : DIALOG_STATE.CLOSED);
-  const shouldOpenDialog = newSearchParams.get("dialog") === name;
+  const [open, setOpen] = useState(!!dialogProps.open);
+
   if (name) {
     const clearQueryParamsOnClose = ["dialog", ...(props.clearQueryParamsOnClose || [])];
     dialogProps.onOpenChange = (open) => {
       if (props.onOpenChange) {
         props.onOpenChange(open);
       }
-
       // toggles "dialog" query param
       if (open) {
-        newSearchParams.set("dialog", name);
+        router.query["dialog"] = name;
       } else {
+        const query = router.query;
         clearQueryParamsOnClose.forEach((queryParam) => {
-          newSearchParams.delete(queryParam);
+          delete query[queryParam];
         });
-        router.push(`${pathname}?${newSearchParams.toString()}`);
+        router.push(
+          {
+            pathname: router.pathname,
+            query,
+          },
+          undefined,
+          { shallow: true }
+        );
       }
-      setDialogState(open ? DIALOG_STATE.OPEN : DIALOG_STATE.CLOSING);
+      setOpen(open);
     };
-
-    if (dialogState === DIALOG_STATE.CLOSED && shouldOpenDialog) {
-      setDialogState(DIALOG_STATE.OPEN);
+    // handles initial state
+    if (!open && router.query["dialog"] === name) {
+      setOpen(true);
     }
-
-    if (dialogState === DIALOG_STATE.CLOSING && !shouldOpenDialog) {
-      setDialogState(DIALOG_STATE.CLOSED);
-    }
-
     // allow overriding
     if (!("open" in dialogProps)) {
-      dialogProps.open = dialogState === DIALOG_STATE.OPEN ? true : false;
+      dialogProps.open = open;
     }
   }
 
@@ -89,14 +77,14 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
         <DialogPrimitive.Content
           {...props}
           className={classNames(
-            "fadeIn bg-default scroll-bar fixed left-1/2 top-1/2 z-50 w-full max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-md text-left shadow-xl focus-visible:outline-none sm:align-middle",
+            "fadeIn bg-default fixed left-1/2 top-1/2 z-50 w-full max-w-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-md text-left shadow-xl focus-visible:outline-none sm:align-middle",
             props.size == "xl"
-              ? "px-8 pt-8 sm:max-w-[90rem]"
+              ? "p-8 sm:max-w-[90rem]"
               : props.size == "lg"
-              ? "px-8 pt-8 sm:max-w-[70rem]"
+              ? "p-8 sm:max-w-[70rem]"
               : props.size == "md"
-              ? "px-8 pt-8 sm:max-w-[48rem]"
-              : "px-8 pt-8 sm:max-w-[35rem]",
+              ? "p-8 sm:max-w-[48rem]"
+              : "p-8 sm:max-w-[35rem]",
             "max-h-[95vh]",
             enableOverflow ? "overflow-auto" : "overflow-visible",
             `${props.className || ""}`
@@ -105,9 +93,7 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
           {type === "creation" && (
             <div>
               <DialogHeader title={title} subtitle={props.description} />
-              <div data-testid="dialog-creation" className="flex flex-col">
-                {children}
-              </div>
+              <div className="flex flex-col">{children}</div>
             </div>
           )}
           {type === "confirmation" && (
@@ -119,7 +105,7 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
               )}
               <div className="w-full">
                 <DialogHeader title={title} subtitle={props.description} />
-                <div data-testid="dialog-confirmation">{children}</div>
+                <div className="flex  space-y-6">{children}</div>
               </div>
             </div>
           )}
@@ -140,10 +126,7 @@ export function DialogHeader(props: DialogHeaderProps) {
 
   return (
     <div className="mb-4">
-      <h3
-        data-testid="dialog-title"
-        className="leading-20 text-semibold font-cal text-emphasis pb-1 text-xl"
-        id="modal-title">
+      <h3 className="leading-20 text-semibold font-cal text-emphasis pb-1 text-xl" id="modal-title">
         {props.title}
       </h3>
       {props.subtitle && <div className="text-subtle text-sm">{props.subtitle}</div>}
@@ -153,15 +136,12 @@ export function DialogHeader(props: DialogHeaderProps) {
 
 export function DialogFooter(props: { children: ReactNode; className?: string; showDivider?: boolean }) {
   return (
-    <div className={classNames("bg-default sticky bottom-0", props.className)}>
-      {props.showDivider && (
-        // TODO: the -mx-8 is causing overflow in the dialog buttons
-        <hr data-testid="divider" className="border-subtle -mx-8" />
-      )}
+    <div className={classNames("bg-default", props.className)}>
+      {props.showDivider && <hr className="border-subtle absolute right-0 w-full" />}
       <div
         className={classNames(
-          "flex justify-end space-x-2 pb-4 pt-4 rtl:space-x-reverse",
-          !props.showDivider && "pb-8"
+          "flex justify-end space-x-2 pt-4 rtl:space-x-reverse",
+          props.showDivider && "-mb-4"
         )}>
         {props.children}
       </div>

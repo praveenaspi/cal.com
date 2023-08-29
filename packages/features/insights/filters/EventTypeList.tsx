@@ -1,10 +1,9 @@
-import { memo } from "react";
+import { isArray } from "lodash";
 
-import { FilterCheckboxFieldsContainer } from "@calcom/features/filters/components/TeamsFilter";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import type { RouterOutputs } from "@calcom/trpc";
 import { trpc } from "@calcom/trpc";
-import { AnimatedPopover, CheckboxField } from "@calcom/ui";
+import { Select } from "@calcom/ui";
 
 import { useFilterContext } from "../context/provider";
 
@@ -12,68 +11,49 @@ type EventType = RouterOutputs["viewer"]["insights"]["eventTypeList"][number];
 type Option = { value: string; label: string };
 
 const mapEventTypeToOption = (eventType: EventType): Option => ({
-  value: eventType.id.toString(),
-  label: eventType.teamId ? `${eventType.title} (${eventType.team?.name})` : eventType.title,
+  value: eventType.slug,
+  label: eventType.title,
 });
 
-export const EventTypeList = memo(() => {
+export const EventTypeList = () => {
   const { t } = useLocale();
-  const { filter, setConfigFilters } = useFilterContext();
-  const { selectedTeamId, selectedEventTypeId, selectedUserId, isAll } = filter;
+  const { filter, setSelectedEventTypeId } = useFilterContext();
+  const { selectedTeamId, selectedEventTypeId, selectedUserId } = filter;
   const { selectedFilter } = filter;
   const { data, isSuccess } = trpc.viewer.insights.eventTypeList.useQuery({
     teamId: selectedTeamId ?? undefined,
     userId: selectedUserId ?? undefined,
-    isAll,
   });
 
   if (!selectedFilter?.includes("event-type")) return null;
   if (!selectedTeamId && !selectedUserId) return null;
 
-  const filterOptions = data?.map(mapEventTypeToOption);
+  const filterOptions =
+    data?.map(mapEventTypeToOption) ?? ([{ label: "No event types found", value: "" }] as Option[]);
 
   const selectedEventType = data?.find((item) => item.id === selectedEventTypeId);
   const eventTypeValue = selectedEventType ? mapEventTypeToOption(selectedEventType) : null;
 
-  if (!isSuccess || !data || !Array.isArray(data)) return null;
-
-  const getPopoverText = () => {
-    if (eventTypeValue?.label) {
-      return `${t("event_type")}: ${eventTypeValue?.label}`;
-    }
-    return t("event_type");
-  };
-
+  if (!isSuccess || !data || !isArray(data)) return null;
   return (
-    <AnimatedPopover text={getPopoverText()}>
-      <FilterCheckboxFieldsContainer>
-        {filterOptions?.map((eventType) => (
-          <div key={eventType.value} className="item-center hover:bg-muted flex cursor-pointer px-4 py-2">
-            <CheckboxField
-              checked={eventTypeValue?.value === eventType.value}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  const selectedEventTypeId = data.find((item) => item.id.toString() === eventType.value)?.id;
-                  !!selectedEventTypeId &&
-                    setConfigFilters({
-                      selectedEventTypeId,
-                    });
-                } else if (!e.target.checked) {
-                  setConfigFilters({
-                    selectedEventTypeId: null,
-                  });
-                }
-              }}
-              description={eventType.label}
-            />
-          </div>
-        ))}
-        {filterOptions?.length === 0 && (
-          <h2 className="text-default px-4 py-2 text-sm font-medium">{t("no_options_available")}</h2>
-        )}
-      </FilterCheckboxFieldsContainer>
-    </AnimatedPopover>
+    <Select<Option>
+      isSearchable={false}
+      isMulti={false}
+      options={filterOptions}
+      onChange={(input) => {
+        if (input) {
+          const selectedEventTypeId = data.find((item) => item.slug === input.value)?.id;
+          !!selectedEventTypeId && setSelectedEventTypeId(selectedEventTypeId);
+        }
+      }}
+      defaultValue={eventTypeValue}
+      value={eventTypeValue}
+      className="w-52 min-w-[180px]"
+      placeholder={
+        <div className="flex flex-row">
+          <p>{t("select_event_type")}</p>
+        </div>
+      }
+    />
   );
-});
-
-EventTypeList.displayName = "EventTypeList";
+};

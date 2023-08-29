@@ -9,11 +9,11 @@ export const metadata = {
   installed: true,
   type: "huddle01_video",
   variant: "conferencing",
-  categories: ["conferencing"],
+  categories: ["video", "web3"],
   logo: "icon.svg",
   publisher: "huddle01.com",
   url: "https://huddle01.com",
-  category: "conferencing",
+  category: "web3",
   slug: "huddle01",
   title: "Huddle01",
   isGlobal: false,
@@ -27,7 +27,6 @@ export const metadata = {
   },
   key: { apikey: randomString(12) },
   dirName: "huddle01video",
-  concurrentMeetings: true,
 } as AppMeta;
 
 export default metadata;

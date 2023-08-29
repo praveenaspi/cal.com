@@ -4,7 +4,7 @@ import { createEvent } from "ics";
 import type { GetServerSidePropsContext } from "next";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { RRule } from "rrule";
 import { z } from "zod";
@@ -23,9 +23,12 @@ import {
   useIsEmbed,
 } from "@calcom/embed-core/embed-iframe";
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
-import { SMS_REMINDER_NUMBER_FIELD, SystemField } from "@calcom/features/bookings/lib/SystemField";
 import { getBookingWithResponses } from "@calcom/features/bookings/lib/get-booking";
-import { getBookingFieldsWithSystemFields } from "@calcom/features/bookings/lib/getBookingFields";
+import {
+  SystemField,
+  getBookingFieldsWithSystemFields,
+  SMS_REMINDER_NUMBER_FIELD,
+} from "@calcom/features/bookings/lib/getBookingFields";
 import { parseRecurringEvent } from "@calcom/lib";
 import { APP_NAME } from "@calcom/lib/constants";
 import {
@@ -36,7 +39,6 @@ import {
 import { getDefaultEvent } from "@calcom/lib/defaultEvents";
 import useGetBrandingColours from "@calcom/lib/getBrandColours";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
-import { useRouterQuery } from "@calcom/lib/hooks/useRouterQuery";
 import useTheme from "@calcom/lib/hooks/useTheme";
 import { getEveryFreqFor } from "@calcom/lib/recurringStrings";
 import { maybeGetBookingUidFromSeat } from "@calcom/lib/server/maybeGetBookingUidFromSeat";
@@ -45,9 +47,10 @@ import { localStorage } from "@calcom/lib/webstorage";
 import prisma from "@calcom/prisma";
 import type { Prisma } from "@calcom/prisma/client";
 import { BookingStatus } from "@calcom/prisma/enums";
-import { bookingMetadataSchema, customInputSchema, EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
-import { Alert, Badge, Button, EmailInput, HeadSeo, useCalcomTheme } from "@calcom/ui";
-import { AlertCircle, Calendar, Check, ChevronLeft, ExternalLink, X } from "@calcom/ui/components/icon";
+import { bookingMetadataSchema } from "@calcom/prisma/zod-utils";
+import { customInputSchema, EventTypeMetaDataSchema } from "@calcom/prisma/zod-utils";
+import { Button, EmailInput, HeadSeo, Badge, useCalcomTheme } from "@calcom/ui";
+import { X, ExternalLink, ChevronLeft, Check, Calendar } from "@calcom/ui/components/icon";
 
 import { timeZone } from "@lib/clock";
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
@@ -93,11 +96,8 @@ const querySchema = z.object({
 });
 
 export default function Success(props: SuccessProps) {
-  const { t, i18n } = useLocale();
+  const { t } = useLocale();
   const router = useRouter();
-  const routerQuery = useRouterQuery();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const {
     allRemainingBookings,
     isSuccessBookingPage,
@@ -105,13 +105,12 @@ export default function Success(props: SuccessProps) {
     formerTime,
     email,
     seatReferenceUid,
-  } = querySchema.parse(routerQuery);
+  } = querySchema.parse(router.query);
 
   const attendeeTimeZone = props?.bookingInfo?.attendees.find(
     (attendee) => attendee.email === email
   )?.timeZone;
-
-  const tz = props.tz ? props.tz : isSuccessBookingPage && attendeeTimeZone ? attendeeTimeZone : timeZone();
+  const tz = isSuccessBookingPage && attendeeTimeZone ? attendeeTimeZone : props.tz ? props.tz : timeZone();
 
   const location = props.bookingInfo.location as ReturnType<typeof getEventLocationValue>;
 
@@ -128,10 +127,6 @@ export default function Success(props: SuccessProps) {
       ? props?.bookingInfo?.attendees?.[0]?.name
       : "Nameless";
 
-  const attendees = props?.bookingInfo?.attendees;
-
-  const isGmail = !!attendees.find((attendee) => attendee.email.includes("gmail.com"));
-
   const [is24h, setIs24h] = useState(isBrowserLocale24h());
   const { data: session } = useSession();
 
@@ -145,27 +140,30 @@ export default function Success(props: SuccessProps) {
   const [calculatedDuration, setCalculatedDuration] = useState<number | undefined>(undefined);
 
   function setIsCancellationMode(value: boolean) {
-    const _searchParams = new URLSearchParams(searchParams);
+    const query_ = { ...router.query };
 
     if (value) {
-      _searchParams.set("cancel", "true");
+      query_.cancel = "true";
     } else {
-      if (_searchParams.get("cancel")) {
-        _searchParams.delete("cancel");
+      if (query_.cancel) {
+        delete query_.cancel;
       }
     }
 
-    router.replace(`${pathname}?${_searchParams.toString()}`);
+    router.replace(
+      {
+        pathname: router.pathname,
+        query: { ...query_ },
+      },
+      undefined,
+      { scroll: false }
+    );
   }
 
-  let evtName = props.eventType.eventName;
-  if (eventType.isDynamic && bookingInfo.responses?.title) {
-    evtName = bookingInfo.responses.title as string;
-  }
   const eventNameObject = {
     attendeeName,
     eventType: props.eventType.title,
-    eventName: evtName,
+    eventName: (props.dynamicEventName as string) || props.eventType.eventName,
     host: props.profile.name || "Nameless",
     location: location,
     bookingFields: bookingInfo.responses,
@@ -182,7 +180,7 @@ export default function Success(props: SuccessProps) {
   // - It's a paid event and payment is pending.
   const needsConfirmation = bookingInfo.status === BookingStatus.PENDING && eventType.requiresConfirmation;
   const userIsOwner = !!(session?.user?.id && eventType.owner?.id === session.user.id);
-  const isLoggedIn = session?.user;
+
   const isCancelled =
     status === "CANCELLED" ||
     status === "REJECTED" ||
@@ -275,7 +273,7 @@ export default function Success(props: SuccessProps) {
 
   // This is a weird case where the same route can be opened in booking flow as a success page or as a booking detail page from the app
   // As Booking Page it has to support configured theme, but as booking detail page it should not do any change. Let Shell.tsx handle it.
-  useTheme(isSuccessBookingPage ? props.profile.theme : "system");
+  useTheme(isSuccessBookingPage ? props.profile.theme : undefined);
   useBrandColors({
     brandColor: props.profile.brandColor,
     darkBrandColor: props.profile.darkBrandColor,
@@ -307,12 +305,12 @@ export default function Success(props: SuccessProps) {
           status={status}
         />
       )}
-      {isLoggedIn && !isEmbed && (
+      {userIsOwner && !isEmbed && (
         <div className="-mb-4 ml-4 mt-2">
           <Link
             href={allRemainingBookings ? "/bookings/recurring" : "/bookings/upcoming"}
             className="hover:bg-subtle text-subtle hover:text-default mt-2 inline-flex px-1 py-2 text-sm dark:hover:bg-transparent">
-            <ChevronLeft className="h-5 w-5 rtl:rotate-180" /> {t("back_to_bookings")}
+            <ChevronLeft className="h-5 w-5" /> {t("back_to_bookings")}
           </Link>
         </div>
       )}
@@ -392,19 +390,17 @@ export default function Success(props: SuccessProps) {
                       </h4>
                     )}
 
-                  <div className="border-subtle text-default mt-8 grid grid-cols-3 border-t pt-8 text-left rtl:text-right">
+                  <div className="border-subtle text-default mt-8 grid grid-cols-3 border-t pt-8 text-left">
                     {(isCancelled || reschedule) && cancellationReason && (
                       <>
                         <div className="font-medium">
-                          {isCancelled ? t("reason") : t("reschedule_reason")}
+                          {isCancelled ? t("reason") : t("reschedule_reason_success_page")}
                         </div>
                         <div className="col-span-2 mb-6 last:mb-0">{cancellationReason}</div>
                       </>
                     )}
                     <div className="font-medium">{t("what")}</div>
-                    <div className="col-span-2 mb-6 last:mb-0" data-testid="booking-title">
-                      {eventName}
-                    </div>
+                    <div className="col-span-2 mb-6 last:mb-0">{eventName}</div>
                     <div className="font-medium">{t("when")}</div>
                     <div className="col-span-2 mb-6 last:mb-0">
                       {reschedule && !!formerTime && (
@@ -432,16 +428,14 @@ export default function Success(props: SuccessProps) {
                         tz={tz}
                       />
                     </div>
-                    {(bookingInfo?.user || bookingInfo?.attendees) && (
+                    {/* {(bookingInfo?.user || bookingInfo?.attendees) && (
                       <>
                         <div className="font-medium">{t("who")}</div>
                         <div className="col-span-2 last:mb-0">
                           {bookingInfo?.user && (
                             <div className="mb-3">
                               <div>
-                                <span data-testid="booking-host-name" className="mr-2">
-                                  {bookingInfo.user.name}
-                                </span>
+                                <span className="mr-2">{bookingInfo.user.name}</span>
                                 <Badge variant="blue">{t("Host")}</Badge>
                               </div>
                               <p className="text-default">{bookingInfo.user.email}</p>
@@ -457,7 +451,7 @@ export default function Success(props: SuccessProps) {
                           ))}
                         </div>
                       </>
-                    )}
+                    )} */}
                     {locationToDisplay && !isCancelled && (
                       <>
                         <div className="mt-3 font-medium">{t("where")}</div>
@@ -475,21 +469,6 @@ export default function Success(props: SuccessProps) {
                           ) : (
                             locationToDisplay
                           )}
-                        </div>
-                      </>
-                    )}
-                    {props.paymentStatus && (
-                      <>
-                        <div className="mt-3 font-medium">
-                          {props.paymentStatus.paymentOption === "HOLD"
-                            ? t("complete_your_booking")
-                            : t("payment")}
-                        </div>
-                        <div className="col-span-2 mb-2 mt-3">
-                          {new Intl.NumberFormat(i18n.language, {
-                            style: "currency",
-                            currency: props.paymentStatus.currency,
-                          }).format(props.paymentStatus.amount / 100.0)}
                         </div>
                       </>
                     )}
@@ -726,26 +705,6 @@ export default function Success(props: SuccessProps) {
                   </>
                 )}
               </div>
-              {isGmail && (
-                <Alert
-                  className="main -mb-20 mt-4 inline-block ltr:text-left rtl:text-right sm:-mt-4 sm:mb-4 sm:w-full sm:max-w-xl sm:align-middle"
-                  severity="warning"
-                  message={
-                    <div>
-                      <p className="font-semibold">{t("google_new_spam_policy")}</p>
-                      <span className="underline">
-                        <a
-                          target="_blank"
-                          href="https://cal.com/blog/google-s-new-spam-policy-may-be-affecting-your-invitations">
-                          {t("resolve")}
-                        </a>
-                      </span>
-                    </div>
-                  }
-                  CustomIcon={AlertCircle}
-                  customIconColor="text-attention dark:text-orange-200"
-                />
-              )}
             </div>
           </div>
         </div>
@@ -1130,9 +1089,6 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     select: {
       success: true,
       refunded: true,
-      currency: true,
-      amount: true,
-      paymentOption: true,
     },
   });
 

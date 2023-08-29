@@ -1,9 +1,8 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import type { z } from "zod";
 
 import { bookingResponsesDbSchema } from "@calcom/features/bookings/lib/getBookingResponsesSchema";
 import slugify from "@calcom/lib/slugify";
-import type { PrismaClient } from "@calcom/prisma";
 import prisma from "@calcom/prisma";
 
 type BookingSelect = {
@@ -59,7 +58,6 @@ async function getBooking(prisma: PrismaClient, uid: string) {
       responses: true,
       smsReminderNumber: true,
       location: true,
-      eventTypeId: true,
       attendees: {
         select: {
           email: true,
@@ -109,33 +107,32 @@ export const getBookingWithResponses = <
 
 export default getBooking;
 
-export const getBookingForReschedule = async (uid: string) => {
+export const getBookingByUidOrRescheduleUid = async (uid: string) => {
+  let eventTypeId: number | null = null;
   let rescheduleUid: string | null = null;
-  const theBooking = await prisma.booking.findFirst({
-    where: {
-      uid,
-    },
-    select: {
-      id: true,
-    },
-  });
+  eventTypeId =
+    (
+      await prisma.booking.findFirst({
+        where: {
+          uid,
+        },
+        select: {
+          eventTypeId: true,
+        },
+      })
+    )?.eventTypeId || null;
 
-  // If no booking is found via the uid, it's probably a booking seat
-  // that its being rescheduled, which we query next.
+  // If no booking is found via the uid, it's probably a booking seat,
+  // which we query next.
   let attendeeEmail: string | null = null;
-  if (!theBooking) {
+  if (!eventTypeId) {
     const bookingSeat = await prisma.bookingSeat.findFirst({
       where: {
         referenceUid: uid,
       },
       select: {
         id: true,
-        attendee: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+        attendee: true,
         booking: {
           select: {
             uid: true,
@@ -151,7 +148,7 @@ export const getBookingForReschedule = async (uid: string) => {
 
   // If we don't have a booking and no rescheduleUid, the ID is invalid,
   // and we return null here.
-  if (!theBooking && !rescheduleUid) return null;
+  if (!eventTypeId && !rescheduleUid) return null;
 
   const booking = await getBooking(prisma, rescheduleUid || uid);
 
@@ -163,75 +160,4 @@ export const getBookingForReschedule = async (uid: string) => {
       ? booking.attendees.filter((attendee) => attendee.email === attendeeEmail)
       : booking.attendees,
   };
-};
-
-/**
- * Should only get booking attendees length for seated events
- * @param uid
- * @returns booking with masked attendee emails
- */
-export const getBookingForSeatedEvent = async (uid: string) => {
-  const booking = await prisma.booking.findFirst({
-    where: {
-      uid,
-    },
-    select: {
-      id: true,
-      uid: true,
-      startTime: true,
-      attendees: {
-        select: {
-          id: true,
-        },
-      },
-      eventTypeId: true,
-      user: {
-        select: {
-          id: true,
-        },
-      },
-    },
-  });
-
-  if (!booking || booking.eventTypeId === null) return null;
-
-  // Validate booking event type has seats enabled
-  const eventType = await prisma.eventType.findFirst({
-    where: {
-      id: booking.eventTypeId,
-    },
-    select: {
-      seatsPerTimeSlot: true,
-    },
-  });
-  if (!eventType || eventType.seatsPerTimeSlot === null) return null;
-
-  const result: GetBookingType = {
-    ...booking,
-    // @NOTE: had to do this because Server side cant return [Object objects]
-    startTime: booking.startTime.toISOString() as unknown as Date,
-    description: null,
-    customInputs: null,
-    responses: {},
-    smsReminderNumber: null,
-    location: null,
-    // mask attendee emails for seated events
-    attendees: booking.attendees.map((attendee) => ({
-      ...attendee,
-      email: "",
-      name: "",
-      bookingSeat: null,
-    })),
-  };
-  return result;
-};
-
-export const getMultipleDurationValue = (
-  multipleDurationConfig: number[] | undefined,
-  queryDuration: string | string[] | undefined,
-  defaultValue: number
-) => {
-  if (!multipleDurationConfig) return null;
-  if (multipleDurationConfig.includes(Number(queryDuration))) return Number(queryDuration);
-  return defaultValue;
 };

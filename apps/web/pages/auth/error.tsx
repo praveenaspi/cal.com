@@ -1,10 +1,10 @@
 import type { GetStaticPropsContext } from "next";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
 import z from "zod";
 
 import { useLocale } from "@calcom/lib/hooks/useLocale";
-import { Button } from "@calcom/ui";
+import { Button, SkeletonText } from "@calcom/ui";
 import { X } from "@calcom/ui/components/icon";
 
 import PageWrapper from "@components/PageWrapper";
@@ -18,10 +18,13 @@ const querySchema = z.object({
 
 export default function Error() {
   const { t } = useLocale();
-  const searchParams = useSearchParams();
-  const { error } = querySchema.parse(searchParams);
+  const router = useRouter();
+  const { error } = querySchema.parse(router.query);
   const isTokenVerificationError = error?.toLowerCase() === "verification";
-  const errorMsg = isTokenVerificationError ? t("token_invalid_expired") : t("error_during_login");
+  let errorMsg = <SkeletonText />;
+  if (router.isReady) {
+    errorMsg = isTokenVerificationError ? t("token_invalid_expired") : t("error_during_login");
+  }
 
   return (
     <AuthContainer title="" description="">

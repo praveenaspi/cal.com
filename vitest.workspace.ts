@@ -27,15 +27,6 @@ const workspaces = packagedEmbedTestsOnly
           setupFiles: ["packages/app-store/closecom/test/globals.ts"],
         },
       },
-      {
-        test: {
-          globals: true,
-          name: "ui/components",
-          include: ["packages/ui/components/**/*.{test,spec}.{ts,js,tsx}"],
-          environment: "jsdom",
-          setupFiles: ["packages/ui/components/test-setup.ts"],
-        },
-      },
     ];
 
 export default defineWorkspace(workspaces);

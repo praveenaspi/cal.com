@@ -1,4 +1,4 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import * as RadioGroup from "@radix-ui/react-radio-group";
 import type { EventTypeSetupProps, FormValues } from "pages/event-types/[type]";
 import type { Key } from "react";
@@ -13,7 +13,6 @@ import type { DurationType } from "@calcom/lib/convertToNewDurationType";
 import convertToNewDurationType from "@calcom/lib/convertToNewDurationType";
 import findDurationType from "@calcom/lib/findDurationType";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
-import { ascendingLimitKeys, intervalLimitKeyToUnit } from "@calcom/lib/intervalLimit";
 import type { PeriodType } from "@calcom/prisma/enums";
 import type { IntervalLimit } from "@calcom/types/Calendar";
 import { Button, DateRangePicker, InputField, Label, Select, SettingsToggle, TextField } from "@calcom/ui";
@@ -172,7 +171,7 @@ export const EventLimitsTab = ({ eventType }: Pick<EventTypeSetupProps, "eventTy
   return (
     <div className="space-y-8">
       <div className="space-y-4 lg:space-y-8">
-        <div className="flex flex-col space-y-4 lg:flex-row lg:space-x-4 lg:space-y-0">
+        <div className="flex flex-col space-y-4 lg:flex-row lg:space-y-0 lg:space-x-4">
           <div className="w-full">
             <Label htmlFor="beforeBufferTime">
               {t("before_event")}
@@ -246,7 +245,7 @@ export const EventLimitsTab = ({ eventType }: Pick<EventTypeSetupProps, "eventTy
             />
           </div>
         </div>
-        <div className="flex flex-col space-y-4 lg:flex-row lg:space-x-4 lg:space-y-0">
+        <div className="flex flex-col space-y-4 lg:flex-row lg:space-y-0 lg:space-x-4">
           <div className="w-full">
             <Label htmlFor="minimumBookingNotice">
               {t("minimum_booking_notice")}
@@ -417,7 +416,7 @@ export const EventLimitsTab = ({ eventType }: Pick<EventTypeSetupProps, "eventTy
                       </div>
                     )}
                     {period.type === "RANGE" && (
-                      <div className="me-2 ms-2 inline-flex space-x-2 rtl:space-x-reverse">
+                      <div className="ms-2 me-2 inline-flex space-x-2 rtl:space-x-reverse">
                         <Controller
                           name="periodDates"
                           control={formMethods.control}
@@ -438,7 +437,7 @@ export const EventLimitsTab = ({ eventType }: Pick<EventTypeSetupProps, "eventTy
                         />
                       </div>
                     )}
-                    {period.suffix ? <span className="me-2 ms-2">&nbsp;{period.suffix}</span> : null}
+                    {period.suffix ? <span className="ms-2 me-2">&nbsp;{period.suffix}</span> : null}
                   </div>
                 );
               })}
@@ -463,6 +462,7 @@ export const EventLimitsTab = ({ eventType }: Pick<EventTypeSetupProps, "eventTy
           type="number"
           {...offsetStartLockedProps}
           label={t("offset_start")}
+          defaultValue={eventType.offsetStart}
           {...formMethods.register("offsetStart")}
           addOnSuffix={<>{t("minutes")}</>}
           hint={t("offset_start_description", {
@@ -477,9 +477,11 @@ export const EventLimitsTab = ({ eventType }: Pick<EventTypeSetupProps, "eventTy
 
 type IntervalLimitsKey = keyof IntervalLimit;
 
-const INTERVAL_LIMIT_OPTIONS = ascendingLimitKeys.map((key) => ({
+const intervalOrderKeys = ["PER_DAY", "PER_WEEK", "PER_MONTH", "PER_YEAR"] as const;
+
+const INTERVAL_LIMIT_OPTIONS = intervalOrderKeys.map((key) => ({
   value: key as keyof IntervalLimit,
-  label: `Per ${intervalLimitKeyToUnit(key)}`,
+  label: `Per ${key.split("_")[1].toLocaleLowerCase()}`,
 }));
 
 type IntervalLimitItemProps = {
@@ -556,7 +558,7 @@ const IntervalLimitsManager = <K extends "durationLimits" | "bookingLimits">({
   const watchIntervalLimits = watch(propertyName);
   const { t } = useLocale();
 
-  const [animateRef] = useAutoAnimate<HTMLUListElement>();
+  // const [animateRef] = useAutoAnimate<HTMLUListElement>();
 
   return (
     <Controller
@@ -582,14 +584,14 @@ const IntervalLimitsManager = <K extends "durationLimits" | "bookingLimits">({
         };
 
         return (
-          <ul ref={animateRef}>
+          <ul>
             {currentIntervalLimits &&
               watchIntervalLimits &&
               Object.entries(currentIntervalLimits)
                 .sort(([limitKeyA], [limitKeyB]) => {
                   return (
-                    ascendingLimitKeys.indexOf(limitKeyA as IntervalLimitsKey) -
-                    ascendingLimitKeys.indexOf(limitKeyB as IntervalLimitsKey)
+                    intervalOrderKeys.indexOf(limitKeyA as IntervalLimitsKey) -
+                    intervalOrderKeys.indexOf(limitKeyB as IntervalLimitsKey)
                   );
                 })
                 .map(([key, value]) => {

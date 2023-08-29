@@ -8,7 +8,7 @@
   "logo": "/icon.ico",
   "url": "https://github.com/aar2dee2",
   "variant": "conferencing",
-  "categories": ["conferencing"],
+  "categories": ["video"],
   "publisher": "aar2dee2",
   "email": "support@cal.com",
   "description": "Create meetings with Cisco Webex",
@@ -21,6 +21,5 @@
   },
   "isTemplate": false,
   "__createdUsingCli": true,
-  "__template": "basic",
-  "concurrentMeetings": true
+  "__template": "basic"
 }

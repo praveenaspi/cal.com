@@ -1,6 +1,5 @@
-// eslint-disable-next-line no-restricted-imports
 import { noop } from "lodash";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useState } from "react";
 
@@ -28,13 +27,12 @@ function WizardForm<T extends DefaultStep>(props: {
   finishLabel?: string;
   stepLabel?: React.ComponentProps<typeof Steps>["stepLabel"];
 }) {
-  const searchParams = useSearchParams();
   const { href, steps, nextLabel = "Next", finishLabel = "Finish", prevLabel = "Back", stepLabel } = props;
   const router = useRouter();
-  const step = parseInt((searchParams?.get("step") as string) || "1");
+  const step = parseInt((router.query.step as string) || "1");
   const currentStep = steps[step - 1];
   const setStep = (newStep: number) => {
-    router.replace(`${href}?step=${newStep || 1}`);
+    router.replace(`${href}?step=${newStep || 1}`, undefined, { shallow: true });
   };
   const [currentStepIsLoading, setCurrentStepIsLoading] = useState(false);
 

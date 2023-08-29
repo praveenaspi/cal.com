@@ -133,8 +133,6 @@ export default class Office365CalendarService implements Calendar {
       dateFromParsed.toISOString()
     )}&endDateTime=${encodeURIComponent(dateToParsed.toISOString())}`;
 
-    const calendarSelectParams = "$select=showAs,start,end";
-
     try {
       const selectedCalendarIds = selectedCalendars
         .filter((e) => e.integration === this.integrationName)
@@ -151,7 +149,7 @@ export default class Office365CalendarService implements Calendar {
       const requests = ids.map((calendarId, id) => ({
         id,
         method: "GET",
-        url: `/me/calendars/${calendarId}/calendarView${filter}&${calendarSelectParams}`,
+        url: `/me/calendars/${calendarId}/calendarView${filter}`,
       }));
       const response = await this.apiGraphBatchCall(requests);
       const responseBody = await this.handleErrorJsonOffice365Calendar(response);
@@ -183,10 +181,8 @@ export default class Office365CalendarService implements Calendar {
     const officeCalendars: OfficeCalendar[] = [];
     // List calendars from MS are paginated
     let finishedParsingCalendars = false;
-    const calendarFilterParam = "$select=id,name,isDefaultCalendar,canEdit";
-
     // Store @odata.nextLink if in response
-    let requestLink = `/me/calendars?${calendarFilterParam}`;
+    let requestLink = "/me/calendars";
 
     while (!finishedParsingCalendars) {
       const response = await this.fetcher(requestLink);

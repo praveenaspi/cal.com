@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 import useGetBrandingColours from "@calcom/lib/getBrandColours";
 import useTheme from "@calcom/lib/hooks/useTheme";
 import { useCalcomTheme } from "@calcom/ui";
@@ -15,7 +17,10 @@ export const useBrandColors = ({
     lightVal: brandColor,
     darkVal: darkBrandColor,
   });
-
   useCalcomTheme(brandTheme);
-  useTheme(theme);
+  const { setTheme } = useTheme(theme);
+
+  useEffect(() => {
+    if (theme) setTheme(theme);
+  }, [setTheme, theme]);
 };

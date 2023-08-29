@@ -1,4 +1,4 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { Trans } from "next-i18next";
@@ -12,7 +12,6 @@ import { z } from "zod";
 import type { EventLocationType } from "@calcom/app-store/locations";
 import { getEventLocationType, MeetLocationType, LocationType } from "@calcom/app-store/locations";
 import useLockedFieldsManager from "@calcom/features/ee/managed-event-types/hooks/useLockedFieldsManager";
-import { useOrgBranding } from "@calcom/features/ee/organizations/context/provider";
 import cx from "@calcom/lib/classNames";
 import { CAL_URL } from "@calcom/lib/constants";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
@@ -22,11 +21,11 @@ import turndown from "@calcom/lib/turndownService";
 import {
   Button,
   Label,
-  Select,
   SettingsToggle,
   Skeleton,
   TextField,
   Editor,
+  Select,
   SkeletonContainer,
   SkeletonText,
 } from "@calcom/ui";
@@ -83,6 +82,7 @@ const DescriptionEditor = (props: DescriptionEditorProps) => {
   const { t } = useLocale();
   const { description } = props;
   const [firstRender, setFirstRender] = useState(true);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -117,27 +117,46 @@ export const EventSetupTab = (
   const [editingLocationType, setEditingLocationType] = useState<string>("");
   const [selectedLocation, setSelectedLocation] = useState<LocationOption | undefined>(undefined);
   const [multipleDuration, setMultipleDuration] = useState(eventType.metadata?.multipleDuration);
-  const orgBranding = useOrgBranding();
-  const seatsEnabled = formMethods.watch("seatsPerTimeSlotEnabled");
 
-  const locationOptions = props.locationOptions.map((locationOption) => {
-    const options = locationOption.options.filter((option) => {
-      // Skip "Organizer's Default App" for non-team members
-      return !team ? option.label !== t("organizer_default_conferencing_app") : true;
-    });
-
-    return {
-      ...locationOption,
-      options,
-    };
+  console.log("event type in event sub tab ==> ", eventType);
+  const locationOptions = props.locationOptions.filter((option) => {
+    return !team ? option.label !== "Conferencing" : true;
   });
 
-  const multipleDurationOptions = [5, 10, 15, 20, 25, 30, 45, 50, 60, 75, 80, 90, 120, 150, 180].map(
-    (mins) => ({
-      value: mins,
-      label: t("multiple_duration_mins", { count: mins }),
-    })
-  );
+  const multipleDurationOptions = [5, 10, 15, 20, 25, 30, 45, 50, 60, 75, 80, 90, 120, 180].map((mins) => ({
+    value: mins,
+    label: t("multiple_duration_mins", { count: mins }),
+  }));
+
+  const BUSINESS_UNIT = [
+    { label: "Arom360", value: "Arom360" },
+    { label: "Hotel Collection", value: "Hotel Collection" },
+    { label: "Hotel Collection Distributor", value: "Hotel Collection Distributor" },
+    { label: "Hotel Scents", value: "Hotel Scents" },
+  ];
+
+  const CALENDAR_TYPE = [
+    { label: "Boca Raton Retail", value: "Boca Raton Retail" },
+    { label: "Naples Retail", value: "Naples Retail" },
+    { label: "Palm Beach Retail", value: "Palm Beach Retail" },
+    { label: "HCD Wholesale", value: "HCD Wholesale" },
+    { label: "Arom360", value: "Arom360" },
+    { label: "Hotel Collection", value: "Hotel Collection" },
+    { label: "Hotel Scent", value: "Hotel Scent" },
+    { label: "Sceting.com", value: "Sceting.com" },
+    { label: "Pre-qualified - AR", value: "Pre-qualified - AR" },
+    { label: "Pre-qualified - HC", value: "Pre-qualified - HC" },
+    { label: "Scent Consultant - AR", value: "Scent Consultant - AR" },
+    { label: "Scent Consultant - HC", value: "Scent Consultant - HC" },
+    { label: "Tech Support - AR", value: "Tech Support - AR" },
+    { label: "Tech Support - HC", value: "Tech Support - HC" },
+    { label: "Hotel Collection Distributor", value: "Hotel Collection Distributor" }
+  ];
+
+  const EVENT_TYPE = [
+    { label: "Lead", value: "Lead" },
+    { label: "Support", value: "Support" }
+  ];
 
   const [selectedMultipleDuration, setSelectedMultipleDuration] = useState<
     MultiValue<{
@@ -149,17 +168,9 @@ export const EventSetupTab = (
     selectedMultipleDuration.find((opt) => opt.value === eventType.length) ?? null
   );
 
-  const openLocationModal = (type: EventLocationType["type"], address = "") => {
+  const openLocationModal = (type: EventLocationType["type"]) => {
     const option = getLocationFromType(type, locationOptions);
-    if (option && option.value === LocationType.InPerson) {
-      const inPersonOption = {
-        ...option,
-        address,
-      };
-      setSelectedLocation(inPersonOption);
-    } else {
-      setSelectedLocation(option);
-    }
+    setSelectedLocation(option);
     setShowLocationModal(true);
   };
 
@@ -236,7 +247,7 @@ export const EventSetupTab = (
   const Locations = () => {
     const { t } = useLocale();
 
-    const [animationRef] = useAutoAnimate<HTMLUListElement>();
+    // const [animationRef] = useAutoAnimate<HTMLUListElement>();
 
     const validLocations = formMethods.getValues("locations").filter((location) => {
       const eventLocation = getEventLocationType(location.type);
@@ -284,7 +295,7 @@ export const EventSetupTab = (
           </div>
         )}
         {validLocations.length > 0 && (
-          <ul ref={animationRef}>
+          <ul>
             {validLocations.map((location, index) => {
               const eventLocationType = getEventLocationType(location.type);
               if (!eventLocationType) {
@@ -297,7 +308,7 @@ export const EventSetupTab = (
               return (
                 <li
                   key={`${location.type}${index}`}
-                  className="border-default text-default mb-2 h-9 rounded-md border px-2 py-1.5 hover:cursor-pointer">
+                  className="border-default text-default mb-2 h-9 rounded-md border py-1.5 px-2 hover:cursor-pointer">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <img
@@ -311,9 +322,7 @@ export const EventSetupTab = (
                         )}
                         alt={`${eventLocationType.label} logo`}
                       />
-                      <span className="ms-1 line-clamp-1 text-sm">{`${eventLabel} ${
-                        location.teamName ? `(${location.teamName})` : ""
-                      }`}</span>
+                      <span className="line-clamp-1 ms-1 text-sm">{eventLabel}</span>
                     </div>
                     <div className="flex">
                       <button
@@ -321,14 +330,10 @@ export const EventSetupTab = (
                         onClick={() => {
                           locationFormMethods.setValue("locationType", location.type);
                           locationFormMethods.unregister("locationLink");
-                          if (location.type === LocationType.InPerson) {
-                            locationFormMethods.setValue("locationAddress", location.address);
-                          } else {
-                            locationFormMethods.unregister("locationAddress");
-                          }
+                          locationFormMethods.unregister("locationAddress");
                           locationFormMethods.unregister("locationPhoneNumber");
                           setEditingLocationType(location.type);
-                          openLocationModal(location.type, location.address);
+                          openLocationModal(location.type);
                         }}
                         aria-label={t("edit")}
                         className="hover:text-emphasis text-subtle mr-1 p-1">
@@ -347,7 +352,7 @@ export const EventSetupTab = (
                 location.type === MeetLocationType && destinationCalendar?.integration !== "google_calendar"
             ) && (
               <div className="text-default flex text-sm">
-                <Check className="mr-1.5 mt-0.5 h-2 w-2.5" />
+                <Check className="mt-0.5 mr-1.5 h-2 w-2.5" />
                 <Trans i18nKey="event_type_requres_google_cal">
                   <p>
                     The “Add to calendar” for this event type needs to be a Google Calendar for Meet to work.
@@ -388,9 +393,6 @@ export const EventSetupTab = (
 
   const lengthLockedProps = shouldLockDisableProps("length");
   const descriptionLockedProps = shouldLockDisableProps("description");
-  const urlPrefix = orgBranding
-    ? orgBranding?.fullDomain.replace(/^(https?:|)\/\//, "")
-    : `${CAL_URL?.replace(/^(https?:|)\/\//, "")}`;
 
   return (
     <div>
@@ -402,6 +404,58 @@ export const EventSetupTab = (
           defaultValue={eventType.title}
           {...formMethods.register("title")}
         />
+
+        {/* <TextField
+          required
+          label={t("leadId")}
+          {...shouldLockDisableProps("leadId")}
+          defaultValue={eventType.leadId}
+          {...formMethods.register("leadId")}
+        /> */}
+
+            <label className="text-default block text-sm font-medium tracking-wide" htmlFor="role">
+              Business Unit
+            </label>
+            <Select
+              isSearchable={false}
+              options={BUSINESS_UNIT}
+              name="businessUnit"
+              defaultValue={BUSINESS_UNIT.find((bu) => bu.value == eventType.businessUnit)}
+              onChange={(option) => {
+                option && formMethods.setValue("businessUnit", option && option.value ? option.value : "");
+              }}
+              className="border-default block w-full rounded-md text-sm"
+            />
+
+            {/* Customer Chasing, Follow up */}
+            <label className="text-default block text-sm font-medium tracking-wide" htmlFor="role">
+              Calendar Name
+            </label>
+            <Select
+              isSearchable={false}
+              options={CALENDAR_TYPE}
+              name="calendarName"
+              defaultValue={CALENDAR_TYPE.find((cn) => cn.value == eventType.calendarName)}
+              onChange={(option) => {
+                option && formMethods.setValue("calendarName", option && option.value ? option.value : "");
+              }}
+              className="border-default block w-full rounded-md text-sm"
+            />
+
+            <label className="text-default block text-sm font-medium tracking-wide" htmlFor="role">
+              Event Type
+            </label>
+            <Select
+              isSearchable={false}
+              options={EVENT_TYPE}
+              name="eventType"
+              defaultValue={EVENT_TYPE.find((bu) => bu.value == eventType.eventType)}
+              onChange={(option) => {
+                option && formMethods.setValue("eventType", option && option.value ? option.value : "");
+              }}
+              className="border-default block w-full rounded-md text-sm"
+            />
+
         <div>
           <Label>
             {t("description")}
@@ -419,10 +473,10 @@ export const EventSetupTab = (
           defaultValue={eventType.slug}
           addOnLeading={
             <>
-              {urlPrefix}/
+              {CAL_URL?.replace(/^(https?:|)\/\//, "")}/
               {!isManagedEventType
                 ? team
-                  ? (orgBranding ? "" : "team/") + team.slug
+                  ? "team/" + team.slug
                   : eventType.users[0].username
                 : t("username_placeholder")}
               /
@@ -509,8 +563,6 @@ export const EventSetupTab = (
             <SettingsToggle
               title={t("allow_booker_to_select_duration")}
               checked={multipleDuration !== undefined}
-              disabled={seatsEnabled}
-              tooltip={seatsEnabled ? t("seat_options_doesnt_multiple_durations") : undefined}
               onCheckedChange={() => {
                 if (multipleDuration !== undefined) {
                   setMultipleDuration(undefined);
@@ -542,29 +594,18 @@ export const EventSetupTab = (
 
       {/* We portal this modal so we can submit the form inside. Otherwise we get issues submitting two forms at once  */}
       <EditLocationDialog
+        isTeamEvent={!!team}
         isOpenDialog={showLocationModal}
         setShowLocationModal={setShowLocationModal}
         saveLocation={saveLocation}
         defaultValues={formMethods.getValues("locations")}
         selection={
           selectedLocation
-            ? selectedLocation.address
-              ? {
-                  value: selectedLocation.value,
-                  label: t(selectedLocation.label),
-                  icon: selectedLocation.icon,
-                  address: selectedLocation.address,
-                }
-              : {
-                  value: selectedLocation.value,
-                  label: t(selectedLocation.label),
-                  icon: selectedLocation.icon,
-                }
+            ? { value: selectedLocation.value, label: t(selectedLocation.label), icon: selectedLocation.icon }
             : undefined
         }
         setSelectedLocation={setSelectedLocation}
         setEditingLocationType={setEditingLocationType}
-        teamId={eventType.team?.id}
       />
     </div>
   );

@@ -11,7 +11,7 @@ export const metadata = {
   logo: "icon.svg",
   publisher: "Cal.com",
   url: "https://hubspot.com/",
-  categories: ["crm"],
+  categories: ["other"],
   label: "HubSpot CRM",
   slug: "hubspot",
   title: "HubSpot CRM",

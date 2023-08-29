@@ -5,10 +5,7 @@ export default function EmbedInitIframe() {
     return;
   }
 
-  const url = new URL(document.URL);
-  const embedNameSpaceFromQueryParam = url.searchParams.get("embed");
-  const hasEmbedPath = url.pathname.endsWith("/embed");
-  const defaultNamespace = "";
+  const embedNameSpaceFromQueryParam = new URL(document.URL).searchParams.get("embed");
 
   // Namespace is initially set in query param `embed` but the query param might get lost during soft navigation
   // So, we also check for the namespace in `window.name` which is set when iframe is created by embed.ts and persists for the duration of iframe's life
@@ -20,8 +17,6 @@ export default function EmbedInitIframe() {
       ? embedNameSpaceFromQueryParam
       : window.name.includes("cal-embed=")
       ? window.name.replace(/cal-embed=(.*)/, "$1").trim()
-      : hasEmbedPath
-      ? defaultNamespace // If query param is not there but /embed is used then assume default namespace.
       : null;
 
   window.isEmbed = () => {

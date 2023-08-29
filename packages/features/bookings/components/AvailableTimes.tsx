@@ -17,40 +17,30 @@ import { TimeFormatToggle } from "./TimeFormatToggle";
 type AvailableTimesProps = {
   date: Dayjs;
   slots: Slots[string];
-  onTimeSelect: (
-    time: string,
-    attendees: number,
-    seatsPerTimeSlot?: number | null,
-    bookingUid?: string
-  ) => void;
-  seatsPerTimeSlot?: number | null;
-  showTimeFormatToggle?: boolean;
+  onTimeSelect: (time: string) => void;
+  seatsPerTimeslot?: number | null;
+  showTimeformatToggle?: boolean;
   className?: string;
-  availableMonth?: string | undefined;
-  selectedSlots?: string[];
 };
 
 export const AvailableTimes = ({
   date,
   slots,
   onTimeSelect,
-  seatsPerTimeSlot,
-  showTimeFormatToggle = true,
+  seatsPerTimeslot,
+  showTimeformatToggle = true,
   className,
-  availableMonth,
-  selectedSlots,
 }: AvailableTimesProps) => {
   const { t, i18n } = useLocale();
   const [timeFormat, timezone] = useTimePreferences((state) => [state.timeFormat, state.timezone]);
-  const bookingData = useBookerStore((state) => state.bookingData);
-  const hasTimeSlots = !!seatsPerTimeSlot;
+  const hasTimeSlots = !!seatsPerTimeslot;
   const [layout] = useBookerStore((state) => [state.layout], shallow);
   const isColumnView = layout === BookerLayouts.COLUMN_VIEW;
   const isMonthView = layout === BookerLayouts.MONTH_VIEW;
   const isToday = dayjs().isSame(date, "day");
 
   return (
-    <div className={classNames("text-default flex flex-col", className)}>
+    <div className={classNames("text-default", className)}>
       <header className="bg-default before:bg-default dark:bg-muted dark:before:bg-muted mb-3 flex w-full flex-row items-center font-medium">
         <span
           className={classNames(
@@ -67,57 +57,55 @@ export const AvailableTimes = ({
               isMonthView ? "text-default text-sm" : "text-xs"
             )}>
             {date.format("DD")}
-            {availableMonth && `, ${availableMonth}`}
           </span>
         </span>
 
-        {showTimeFormatToggle && (
-          <div className="ml-auto rtl:mr-auto">
+        {showTimeformatToggle && (
+          <div className="ml-auto">
             <TimeFormatToggle />
           </div>
         )}
       </header>
       <div className="h-full pb-4">
         {!slots.length && (
-          <div className="bg-subtle border-subtle flex h-full flex-col items-center rounded-md border p-6 dark:bg-transparent">
+          <div className="bg-subtle flex h-full flex-col items-center rounded-md p-6">
             <CalendarX2 className="text-muted mb-2 h-4 w-4" />
-            <p className={classNames("text-muted", showTimeFormatToggle ? "-mt-1 text-lg" : "text-sm")}>
+            <p className={classNames("text-muted", showTimeformatToggle ? "-mt-1 text-lg" : "text-sm")}>
               {t("all_booked_today")}
             </p>
           </div>
         )}
 
         {slots.map((slot) => {
-          const bookingFull = !!(hasTimeSlots && slot.attendees && slot.attendees >= seatsPerTimeSlot);
-          const isHalfFull = slot.attendees && seatsPerTimeSlot && slot.attendees / seatsPerTimeSlot >= 0.5;
-          const isNearlyFull =
-            slot.attendees && seatsPerTimeSlot && slot.attendees / seatsPerTimeSlot >= 0.83;
-
-          const colorClass = isNearlyFull ? "bg-rose-600" : isHalfFull ? "bg-yellow-500" : "bg-emerald-400";
+          const bookingFull = !!(hasTimeSlots && slot.attendees && slot.attendees >= seatsPerTimeslot);
           return (
             <Button
               key={slot.time}
-              disabled={bookingFull || !!(slot.bookingUid && slot.bookingUid === bookingData?.uid)}
+              disabled={bookingFull}
               data-testid="time"
               data-disabled={bookingFull}
               data-time={slot.time}
-              onClick={() => onTimeSelect(slot.time, slot?.attendees || 0, seatsPerTimeSlot, slot.bookingUid)}
-              className={classNames(
-                "min-h-9 hover:border-brand-default mb-2 flex h-auto w-full flex-col justify-center py-2",
-                selectedSlots?.includes(slot.time) && "border-brand-default"
-              )}
+              onClick={() => onTimeSelect(slot.time)}
+              className="min-h-9 mb-2 flex h-auto w-full flex-col justify-center py-2"
               color="secondary">
               {dayjs.utc(slot.time).tz(timezone).format(timeFormat)}
               {bookingFull && <p className="text-sm">{t("booking_full")}</p>}
               {hasTimeSlots && !bookingFull && (
                 <p className="flex items-center text-sm lowercase">
                   <span
-                    className={classNames(colorClass, "mr-1 inline-block h-2 w-2 rounded-full")}
+                    className={classNames(
+                      slot.attendees && slot.attendees / seatsPerTimeslot >= 0.8
+                        ? "bg-rose-600"
+                        : slot.attendees && slot.attendees / seatsPerTimeslot >= 0.33
+                        ? "bg-yellow-500"
+                        : "bg-emerald-400",
+                      "mr-1 inline-block h-2 w-2 rounded-full"
+                    )}
                     aria-hidden
                   />
-                  {slot.attendees ? seatsPerTimeSlot - slot.attendees : seatsPerTimeSlot}{" "}
+                  {slot.attendees ? seatsPerTimeslot - slot.attendees : seatsPerTimeslot}{" "}
                   {t("seats_available", {
-                    count: slot.attendees ? seatsPerTimeSlot - slot.attendees : seatsPerTimeSlot,
+                    count: slot.attendees ? seatsPerTimeslot - slot.attendees : seatsPerTimeslot,
                   })}
                 </p>
               )}

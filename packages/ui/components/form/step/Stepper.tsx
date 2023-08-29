@@ -1,4 +1,4 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 
 type DefaultStep = {
@@ -17,13 +17,13 @@ function Stepper<T extends DefaultStep>(props: {
     steps,
     stepLabel = (currentStep, totalSteps) => `Step ${currentStep} of ${totalSteps}`,
   } = props;
-  const [stepperRef] = useAutoAnimate<HTMLOListElement>();
+  // const [stepperRef] = useAutoAnimate<HTMLOListElement>();
   return (
     <>
       {steps.length > 1 && (
         <nav className="flex items-center justify-center" aria-label="Progress">
           <p className="text-sm font-medium">{stepLabel(props.step, steps.length)}</p>
-          <ol role="list" className="ml-8 flex items-center space-x-5" ref={stepperRef}>
+          <ol role="list" className="ml-8 flex items-center space-x-5">
             {steps.map((mapStep, index) => (
               <li key={mapStep.title}>
                 <Link

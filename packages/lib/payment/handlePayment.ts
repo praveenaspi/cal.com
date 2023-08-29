@@ -4,7 +4,7 @@ import appStore from "@calcom/app-store";
 import type { EventTypeAppsList } from "@calcom/app-store/utils";
 import type { EventTypeModel } from "@calcom/prisma/zod";
 import type { CalendarEvent } from "@calcom/types/Calendar";
-import type { IAbstractPaymentService, PaymentApp } from "@calcom/types/PaymentService";
+import type { IAbstractPaymentService } from "@calcom/types/PaymentService";
 
 const handlePayment = async (
   evt: CalendarEvent,
@@ -25,10 +25,8 @@ const handlePayment = async (
   },
   bookerEmail: string
 ) => {
-  const paymentApp = (await appStore[
-    paymentAppCredentials?.app?.dirName as keyof typeof appStore
-  ]()) as PaymentApp;
-  if (!paymentApp?.lib?.PaymentService) {
+  const paymentApp = await appStore[paymentAppCredentials?.app?.dirName as keyof typeof appStore]();
+  if (!(paymentApp && "lib" in paymentApp && "PaymentService" in paymentApp.lib)) {
     console.warn(`payment App service of type ${paymentApp} is not implemented`);
     return null;
   }

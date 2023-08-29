@@ -10,6 +10,10 @@ type ContentType = "application/json" | "application/x-www-form-urlencoded";
 export type EventTypeInfo = {
   eventTitle?: string | null;
   eventDescription?: string | null;
+  // leadId?: string | null;
+  eventType?: string | null;
+  businessUnit?: string | null;
+  calendarName?: string | null;
   requiresConfirmation?: boolean | null;
   price?: number | null;
   currency?: string | null;
@@ -30,9 +34,7 @@ export type WebhookDataType = CalendarEvent &
     downloadLink?: string;
   };
 
-function getZapierPayload(
-  data: CalendarEvent & EventTypeInfo & { status?: string; createdAt: string }
-): string {
+function getZapierPayload(data: CalendarEvent & EventTypeInfo & { status?: string }): string {
   const attendees = data.attendees.map((attendee) => {
     return {
       name: attendee.name,
@@ -71,7 +73,6 @@ function getZapierPayload(
       length: data.length,
     },
     attendees: attendees,
-    createdAt: data.createdAt,
   };
   return JSON.stringify(body);
 }
@@ -115,7 +116,7 @@ const sendPayload = async (
 
   /* Zapier id is hardcoded in the DB, we send the raw data for this case  */
   if (appId === "zapier") {
-    body = getZapierPayload({ ...data, createdAt });
+    body = getZapierPayload(data);
   } else if (template) {
     body = applyTemplate(template, { ...data, triggerEvent, createdAt }, contentType);
   } else {
@@ -160,23 +161,24 @@ const _sendPayload = async (
   const response = await fetch(subscriberUrl, {
     method: "POST",
     headers: {
+      // Authorization:
+      //   "eyJ1c2VyIjoiaW50ZWdyYXRpb25AYXJvbWEzNjAuY29tIiwicGFzcyI6Imd3aHVpcmd3SlU0NTIhI2pyZzU0MiIsInBsYXRmb3JtIjoiY2FsLmNvbSJ9",
+      Authorization: process.env.AROMA_AUTH,
       "Content-Type": contentType,
       "X-Cal-Signature-256": secretSignature,
     },
-    redirect: "manual",
     body,
   });
 
+  console.log("event type resposnse stringify changed ==> ", await response.json());
   const text = await response.text();
+
+  console.log("event type response text changed ==> ", text);
 
   return {
     ok: response.ok,
     status: response.status,
-    ...(text
-      ? {
-          message: text,
-        }
-      : {}),
+    message: text,
   };
 };
 

@@ -2,27 +2,26 @@ import * as React from "react";
 
 import type { Dayjs } from "@calcom/dayjs";
 
-interface IFilter {
-  dateRange: [Dayjs, Dayjs, null | string];
-  selectedTimeView?: "year" | "week" | "month";
-  selectedFilter?: Array<"user" | "event-type"> | null;
-  selectedTeamId?: number | null;
-  selectedTeamName?: string | null;
-  selectedUserId?: number | null;
-  selectedMemberUserId?: number | null;
-  selectedEventTypeId?: number | null;
-  isAll?: boolean;
-  initialConfig?: {
-    teamId?: number | null;
-    userId?: number | null;
-    isAll?: boolean;
-  };
-}
-
 export type FilterContextType = {
-  filter: IFilter;
+  filter: {
+    dateRange: [Dayjs, Dayjs, null | string];
+    selectedTimeView: "year" | "week" | "month";
+    selectedFilter: Array<"user" | "event-type"> | null;
+    selectedTeamId: number | null;
+    selectedTeamName: string | null;
+    selectedUserId: number | null;
+    selectedMemberUserId: number | null;
+    selectedEventTypeId: number | null;
+  };
+  setDateRange: ([start, end, range]: [Dayjs, Dayjs, null | string]) => void;
+  setSelectedFilter: (filter: Array<"user" | "event-type"> | null) => void;
+  setSelectedTeamId: (teamId: number | null) => void;
+  setSelectedTeamName: (teamName: string | null) => void;
+  setSelectedUserId: (userId: number | null) => void;
+  setSelectedMemberUserId: (userId: number | null) => void;
+  setSelectedEventTypeId: (eventTypeId: number | null) => void;
+  setSelectedTimeView: (timeView: "year" | "week" | "month") => void;
   clearFilters: () => void;
-  setConfigFilters: (config: Partial<IFilter>) => void;
 };
 
 export const FilterContext = React.createContext<FilterContextType | null>(null);

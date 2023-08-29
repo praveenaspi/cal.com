@@ -65,7 +65,7 @@
   "sign_in": "Bejelentkezés",
   "forgot": "Elfelejtetted?",
   "done": "Kész",
-  "all": "Minden alkalmazás",
+  "all_apps": "Minden alkalmazás",
   "finish": "Befelyezés",
   "current_time": "Jelenlegi idő",
   "welcome": "Üdvözöljük",
@@ -81,6 +81,7 @@
   "try_again": "Próbáld újra",
   "login": "Bejelentkezés",
   "success": "Siker",
+  "cancelled": "Lemondva",
   "and": "és",
   "light": "Világos",
   "dark": "Sötét",
@@ -205,9 +206,5 @@
   "minute_timeUnit": "Perc",
   "remove_app": "Alkalmazás eltávolítása",
   "yes_remove_app": "Igen, távolítsd el az alkalmazást",
-  "web_conference": "Online konferencia",
-  "timezone_variable": "Időzóna",
-  "location_variable": "Helyszín",
-  "additional_notes_variable": "Egyéb jegyzetek",
-  "insights_all_org_filter": "Minden alkalmazás"
+  "web_conference": "Online konferencia"
 }

@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { GetServerSidePropsContext } from "next";
-import dynamic from "next/dynamic";
+import { useSession } from "next-auth/react";
+import { Trans } from "next-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,6 +20,7 @@ import { HttpError } from "@calcom/lib/http-error";
 import { telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import { validateBookerLayouts } from "@calcom/lib/validateBookerLayouts";
 import type { Prisma } from "@calcom/prisma/client";
+import { UserPermissionRole } from "@calcom/prisma/enums";
 import type { PeriodType, SchedulingType } from "@calcom/prisma/enums";
 import type {
   BookerLayoutSettings,
@@ -29,53 +31,26 @@ import { eventTypeBookingFields } from "@calcom/prisma/zod-utils";
 import type { RouterOutputs } from "@calcom/trpc/react";
 import { trpc } from "@calcom/trpc/react";
 import type { IntervalLimit, RecurringEvent } from "@calcom/types/Calendar";
-import { Form, showToast } from "@calcom/ui";
+import { ConfirmationDialogContent, Dialog, Form, showToast } from "@calcom/ui";
 
 import { asStringOrThrow } from "@lib/asStringOrNull";
 import type { inferSSRProps } from "@lib/types/inferSSRProps";
 
 import PageWrapper from "@components/PageWrapper";
+// These can't really be moved into calcom/ui due to the fact they use infered getserverside props typings
+import { EventAdvancedTab } from "@components/eventtype/EventAdvancedTab";
+import { EventAppsTab } from "@components/eventtype/EventAppsTab";
 import type { AvailabilityOption } from "@components/eventtype/EventAvailabilityTab";
+import { EventAvailabilityTab } from "@components/eventtype/EventAvailabilityTab";
+import { EventLimitsTab } from "@components/eventtype/EventLimitsTab";
+import { EventRecurringTab } from "@components/eventtype/EventRecurringTab";
+import { EventSetupTab } from "@components/eventtype/EventSetupTab";
+import { EventTeamTab } from "@components/eventtype/EventTeamTab";
 import { EventTypeSingleLayout } from "@components/eventtype/EventTypeSingleLayout";
+import { EventWebhooksTab } from "@components/eventtype/EventWebhooksTab";
+import EventWorkflowsTab from "@components/eventtype/EventWorkfowsTab";
 
 import { ssrInit } from "@server/lib/ssr";
-
-// These can't really be moved into calcom/ui due to the fact they use infered getserverside props typings;
-const EventSetupTab = dynamic(() =>
-  import("@components/eventtype/EventSetupTab").then((mod) => mod.EventSetupTab)
-);
-
-const EventAvailabilityTab = dynamic(() =>
-  import("@components/eventtype/EventAvailabilityTab").then((mod) => mod.EventAvailabilityTab)
-);
-
-const EventTeamTab = dynamic(() =>
-  import("@components/eventtype/EventTeamTab").then((mod) => mod.EventTeamTab)
-);
-
-const EventLimitsTab = dynamic(() =>
-  import("@components/eventtype/EventLimitsTab").then((mod) => mod.EventLimitsTab)
-);
-
-const EventAdvancedTab = dynamic(() =>
-  import("@components/eventtype/EventAdvancedTab").then((mod) => mod.EventAdvancedTab)
-);
-
-const EventRecurringTab = dynamic(() =>
-  import("@components/eventtype/EventRecurringTab").then((mod) => mod.EventRecurringTab)
-);
-
-const EventAppsTab = dynamic(() =>
-  import("@components/eventtype/EventAppsTab").then((mod) => mod.EventAppsTab)
-);
-
-const EventWorkflowsTab = dynamic(() => import("@components/eventtype/EventWorkfowsTab"));
-
-const EventWebhooksTab = dynamic(() =>
-  import("@components/eventtype/EventWebhooksTab").then((mod) => mod.EventWebhooksTab)
-);
-
-const ManagedEventTypeDialog = dynamic(() => import("@components/eventtype/ManagedEventDialog"));
 
 export type FormValues = {
   title: string;
@@ -83,11 +58,14 @@ export type FormValues = {
   eventName: string;
   slug: string;
   length: number;
+  eventType: string;
+  // leadId: string;
+  businessUnit: string;
+  calendarName: string;
   offsetStart: number;
   description: string;
   disableGuests: boolean;
   requiresConfirmation: boolean;
-  requiresBookerEmailVerification: boolean;
   recurringEvent: RecurringEvent | null;
   schedulingType: SchedulingType | null;
   hidden: boolean;
@@ -102,8 +80,6 @@ export type FormValues = {
     displayLocationPublicly?: boolean;
     phone?: string;
     hostDefault?: string;
-    credentialId?: number;
-    teamName?: string;
   }[];
   customInputs: CustomInputParsed[];
   schedule: number | null;
@@ -132,7 +108,6 @@ export type FormValues = {
   bookingFields: z.infer<typeof eventTypeBookingFields>;
   availability?: AvailabilityOption;
   bookerLayouts: BookerLayoutSettings;
-  multipleDurationEnabled: boolean;
 };
 
 export type CustomInputParsed = typeof customInputSchema._output;
@@ -161,19 +136,20 @@ const EventTypePage = (props: EventTypeSetupProps) => {
   const { t } = useLocale();
   const utils = trpc.useContext();
   const telemetry = useTelemetry();
+  const session = useSession();
+
+  const isAdmin = session.data?.user.role === UserPermissionRole.ADMIN;
+
   const {
     data: { tabName },
   } = useTypedQuery(querySchema);
 
-  const { data: eventTypeApps } = trpc.viewer.integrations.useQuery({
+  const { data: eventTypeApps } = trpc.viewer.apps.useQuery({
     extendsFeature: "EventType",
-    teamId: props.eventType.team?.id || props.eventType.parent?.teamId,
-    onlyInstalled: true,
   });
 
   const { eventType, locationOptions, team, teamMembers, currentUserMembership, destinationCalendar } = props;
-  const [animationParentRef] = useAutoAnimate<HTMLDivElement>();
-
+  // const [animationParentRef] = useAutoAnimate<HTMLDivElement>();
   const updateMutation = trpc.viewer.eventTypes.update.useMutation({
     onSuccess: async () => {
       formMethods.setValue(
@@ -201,18 +177,18 @@ const EventTypePage = (props: EventTypeSetupProps) => {
       }
 
       if (err.data?.code === "UNAUTHORIZED") {
-        message = `${err.data.code}: ${t("error_event_type_unauthorized_update")}`;
+        message = `${err.data.code}: You are not able to update this event`;
       }
 
       if (err.data?.code === "PARSE_ERROR" || err.data?.code === "BAD_REQUEST") {
-        message = `${err.data.code}: ${t(err.message)}`;
+        message = `${err.data.code}: ${err.message}`;
       }
 
-      if (err.data?.code === "INTERNAL_SERVER_ERROR") {
-        message = t("unexpected_error_try_again");
+      if (message) {
+        showToast(message, "error");
+      } else {
+        showToast(err.message, "error");
       }
-
-      showToast(message ? t(message) : t(err.message), "error");
     },
   });
 
@@ -254,12 +230,10 @@ const EventTypePage = (props: EventTypeSetupProps) => {
       durationLimits: eventType.durationLimits || undefined,
       length: eventType.length,
       hidden: eventType.hidden,
-      hashedLink: eventType.hashedLink?.link || undefined,
       periodDates: {
         startDate: periodDates.startDate,
         endDate: periodDates.endDate,
       },
-      offsetStart: eventType.offsetStart,
       bookingFields: eventType.bookingFields,
       periodType: eventType.periodType,
       periodCountCalendarDays: eventType.periodCountCalendarDays ? "1" : "0",
@@ -279,7 +253,6 @@ const EventTypePage = (props: EventTypeSetupProps) => {
               .filter((slug) => slug !== eventType.slug) ?? [],
         },
       })),
-      seatsPerTimeSlotEnabled: eventType.seatsPerTimeSlot,
     };
   }, [eventType, periodDates, metadata]);
 
@@ -319,12 +292,12 @@ const EventTypePage = (props: EventTypeSetupProps) => {
 
   const appsMetadata = formMethods.getValues("metadata")?.apps;
   const availability = formMethods.watch("availability");
+  const numberOfInstalledApps = eventTypeApps?.filter((app) => app.isInstalled).length || 0;
   let numberOfActiveApps = 0;
 
   if (appsMetadata) {
     numberOfActiveApps = Object.entries(appsMetadata).filter(
-      ([appId, appData]) =>
-        eventTypeApps?.items.find((app) => app.slug === appId)?.isInstalled && appData.enabled
+      ([appId, appData]) => eventTypeApps?.find((app) => app.slug === appId)?.isInstalled && appData.enabled
     ).length;
   }
 
@@ -332,30 +305,42 @@ const EventTypePage = (props: EventTypeSetupProps) => {
     eventType.slug
   }`;
 
-  const tabMap = {
-    setup: (
-      <EventSetupTab
-        eventType={eventType}
-        locationOptions={locationOptions}
-        team={team}
-        teamMembers={teamMembers}
-        destinationCalendar={destinationCalendar}
-      />
-    ),
-    availability: <EventAvailabilityTab eventType={eventType} isTeamEvent={!!team} />,
-    team: <EventTeamTab teamMembers={teamMembers} team={team} eventType={eventType} />,
-    limits: <EventLimitsTab eventType={eventType} />,
-    advanced: <EventAdvancedTab eventType={eventType} team={team} />,
-    recurring: <EventRecurringTab eventType={eventType} />,
-    apps: <EventAppsTab eventType={{ ...eventType, URL: permalink }} />,
-    workflows: (
-      <EventWorkflowsTab
-        eventType={eventType}
-        workflows={eventType.workflows.map((workflowOnEventType) => workflowOnEventType.workflow)}
-      />
-    ),
-    webhooks: <EventWebhooksTab eventType={eventType} />,
-  } as const;
+  const tabMap = isAdmin
+    ? ({
+        setup: (
+          <EventSetupTab
+            eventType={eventType}
+            locationOptions={locationOptions}
+            team={team}
+            teamMembers={teamMembers}
+            destinationCalendar={destinationCalendar}
+          />
+        ),
+        availability: <EventAvailabilityTab eventType={eventType} isTeamEvent={!!team} />,
+        team: <EventTeamTab teamMembers={teamMembers} team={team} eventType={eventType} />,
+        limits: <EventLimitsTab eventType={eventType} />,
+        advanced: <EventAdvancedTab eventType={eventType} team={team} />,
+        recurring: <EventRecurringTab eventType={eventType} />,
+        apps: <EventAppsTab eventType={{ ...eventType, URL: permalink }} />,
+        workflows: (
+          <EventWorkflowsTab
+            eventType={eventType}
+            workflows={eventType.workflows.map((workflowOnEventType) => workflowOnEventType.workflow)}
+          />
+        ),
+        webhooks: <EventWebhooksTab eventType={eventType} />,
+      } as const)
+    : ({
+        setup: (
+          <EventSetupTab
+            eventType={eventType}
+            locationOptions={locationOptions}
+            team={team}
+            teamMembers={teamMembers}
+            destinationCalendar={destinationCalendar}
+          />
+        ),
+      } as const);
 
   const handleSubmit = async (values: FormValues) => {
     const {
@@ -377,10 +362,7 @@ const EventTypePage = (props: EventTypeSetupProps) => {
       seatsPerTimeSlotEnabled,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       minimumBookingNoticeInDurationType,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       bookerLayouts,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      multipleDurationEnabled,
       ...input
     } = values;
 
@@ -411,7 +393,6 @@ const EventTypePage = (props: EventTypeSetupProps) => {
       throw new Error(t("seats_and_no_show_fee_error"));
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { availability, ...rest } = input;
     updateMutation.mutate({
       ...rest,
@@ -440,7 +421,7 @@ const EventTypePage = (props: EventTypeSetupProps) => {
     <>
       <EventTypeSingleLayout
         enabledAppsNumber={numberOfActiveApps}
-        installedAppsNumber={eventTypeApps?.items.length || 0}
+        installedAppsNumber={numberOfInstalledApps}
         enabledWorkflowsNumber={eventType.workflows.length}
         eventType={eventType}
         team={team}
@@ -469,8 +450,6 @@ const EventTypePage = (props: EventTypeSetupProps) => {
               // We don't need to send send these values to the backend
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
               seatsPerTimeSlotEnabled,
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              multipleDurationEnabled,
               ...input
             } = values;
 
@@ -496,7 +475,6 @@ const EventTypePage = (props: EventTypeSetupProps) => {
                 }
               }
             }
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { availability, ...rest } = input;
             updateMutation.mutate({
               ...rest,
@@ -516,26 +494,49 @@ const EventTypePage = (props: EventTypeSetupProps) => {
               customInputs,
             });
           }}>
-          <div ref={animationParentRef}>{tabMap[tabName]}</div>
+          <div>{tabMap[tabName]}</div>
         </Form>
       </EventTypeSingleLayout>
-
-      {slugExistsChildrenDialogOpen.length ? (
-        <ManagedEventTypeDialog
-          slugExistsChildrenDialogOpen={slugExistsChildrenDialogOpen}
+      <Dialog
+        open={slugExistsChildrenDialogOpen.length > 0}
+        onOpenChange={() => {
+          setSlugExistsChildrenDialogOpen([]);
+        }}>
+        <ConfirmationDialogContent
           isLoading={formMethods.formState.isSubmitting}
-          onOpenChange={() => {
-            setSlugExistsChildrenDialogOpen([]);
-          }}
-          slug={slug}
+          variety="warning"
+          title={t("managed_event_dialog_title", {
+            slug,
+            count: slugExistsChildrenDialogOpen.length,
+          })}
+          confirmBtnText={t("managed_event_dialog_confirm_button", {
+            count: slugExistsChildrenDialogOpen.length,
+          })}
+          cancelBtnText={t("go_back")}
           onConfirm={(e: { preventDefault: () => void }) => {
             e.preventDefault();
             handleSubmit(formMethods.getValues());
             telemetry.event(telemetryEventTypes.slugReplacementAction);
             setSlugExistsChildrenDialogOpen([]);
-          }}
-        />
-      ) : null}
+          }}>
+          <p className="mt-5">
+            <Trans
+              i18nKey="managed_event_dialog_information"
+              values={{
+                names: `${slugExistsChildrenDialogOpen
+                  .map((ch) => ch.owner.name)
+                  .slice(0, -1)
+                  .join(", ")} ${
+                  slugExistsChildrenDialogOpen.length > 1 ? t("and") : ""
+                } ${slugExistsChildrenDialogOpen.map((ch) => ch.owner.name).slice(-1)}`,
+                slug,
+              }}
+              count={slugExistsChildrenDialogOpen.length}
+            />
+          </p>{" "}
+          <p className="mt-5">{t("managed_event_dialog_clarification")}</p>
+        </ConfirmationDialogContent>
+      </Dialog>
     </>
   );
 };
@@ -543,7 +544,6 @@ const EventTypePage = (props: EventTypeSetupProps) => {
 const EventTypePageWrapper = (props: inferSSRProps<typeof getServerSideProps>) => {
   const { data } = trpc.viewer.eventTypes.get.useQuery({ id: props.type });
 
-  if (!data) return null;
   return <EventTypePage {...(data as EventTypeSetupProps)} />;
 };
 

@@ -19,7 +19,7 @@ export const PopularAppsSlider = <T extends App>({ items }: { items: T[] }) => {
             perView: 1,
           },
         },
-      }}
+      } as any}
       renderItem={(app) => <AppCard app={app} />}
     />
   );

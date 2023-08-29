@@ -9,5 +9,3 @@ type SessionOptions = {
 export const sessionHandler = async ({ ctx }: SessionOptions) => {
   return ctx.session;
 };
-
-export default sessionHandler;

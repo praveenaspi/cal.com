@@ -7,6 +7,7 @@ import type {
   SelectLikeComponentProps,
 } from "@calcom/app-store/routing-forms/components/react-awesome-query-builder/widgets";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import type { BookingFieldType } from "@calcom/prisma/zod-utils";
 import {
   PhoneInput,
   AddressInput,
@@ -16,25 +17,12 @@ import {
   RadioField,
   EmailField,
   Tooltip,
-  InputField,
-  CheckboxField,
+  Checkbox,
 } from "@calcom/ui";
 import { UserPlus, X } from "@calcom/ui/components/icon";
 
-import { ComponentForField } from "./FormBuilderField";
-import { propsTypes } from "./propsTypes";
-import type { FieldType, variantsConfigSchema, fieldSchema } from "./schema";
-import { preprocessNameFieldDataWithVariant } from "./utils";
-
-export const isValidValueProp: Record<Component["propsType"], (val: unknown) => boolean> = {
-  boolean: (val) => typeof val === "boolean",
-  multiselect: (val) => val instanceof Array && val.every((v) => typeof v === "string"),
-  objectiveWithInput: (val) => (typeof val === "object" && val !== null ? "value" in val : false),
-  select: (val) => typeof val === "string",
-  text: (val) => typeof val === "string",
-  textList: (val) => val instanceof Array && val.every((v) => typeof v === "string"),
-  variants: (val) => (typeof val === "object" && val !== null) || typeof val === "string",
-};
+import { ComponentForField } from "./FormBuilder";
+import type { fieldsSchema } from "./FormBuilderFieldsSchema";
 
 type Component =
   | {
@@ -65,24 +53,11 @@ type Component =
           value: string;
           optionValue: string;
         }> & {
-          optionsInputs: NonNullable<z.infer<typeof fieldSchema>["optionsInputs"]>;
+          optionsInputs: NonNullable<z.infer<typeof fieldsSchema>[number]["optionsInputs"]>;
           value: { value: string; optionValue: string };
         } & {
           name?: string;
           required?: boolean;
-        }
-      >(
-        props: TProps
-      ) => JSX.Element;
-    }
-  | {
-      propsType: "variants";
-      factory: <
-        TProps extends Omit<TextLikeComponentProps, "value" | "setValue"> & {
-          variant: string | undefined;
-          variants: z.infer<typeof variantsConfigSchema>["variants"];
-          value: Record<string, string> | string | undefined;
-          setValue: (value: string | Record<string, string>) => void;
         }
       >(
         props: TProps
@@ -92,101 +67,27 @@ type Component =
 // TODO: Share FormBuilder components across react-query-awesome-builder(for Routing Forms) widgets.
 // There are certain differences b/w two. Routing Forms expect label to be provided by the widget itself and FormBuilder adds label itself and expect no label to be added by component.
 // Routing Form approach is better as it provides more flexibility to show the label in complex components. But that can't be done right now because labels are missing consistent asterisk required support across different components
-export const Components: Record<FieldType, Component> = {
+export const Components: Record<BookingFieldType, Component> = {
   text: {
-    propsType: propsTypes.text,
+    propsType: "text",
     factory: (props) => <Widgets.TextWidget noLabel={true} {...props} />,
   },
   textarea: {
-    propsType: propsTypes.textarea,
+    propsType: "text",
     // TODO: Make rows configurable in the form builder
     factory: (props) => <Widgets.TextAreaWidget rows={3} {...props} />,
   },
   number: {
-    propsType: propsTypes.number,
+    propsType: "text",
     factory: (props) => <Widgets.NumberWidget noLabel={true} {...props} />,
   },
   name: {
-    propsType: propsTypes.name,
+    propsType: "text",
     // Keep special "name" type field and later build split(FirstName and LastName) variant of it.
-    factory: (props) => {
-      const { variant: variantName = "fullName" } = props;
-      const onChange = (name: string, value: string) => {
-        let currentValue = props.value;
-        if (typeof currentValue !== "object") {
-          currentValue = {};
-        }
-        props.setValue({
-          ...currentValue,
-          [name]: value,
-        });
-      };
-
-      if (!props.variants) {
-        throw new Error("'variants' is required for 'name' type of field");
-      }
-
-      if (variantName !== "firstAndLastName" && variantName !== "fullName") {
-        throw new Error(`Invalid variant name '${variantName}' for 'name' type of field`);
-      }
-
-      const value = preprocessNameFieldDataWithVariant(variantName, props.value);
-
-      if (variantName === "fullName") {
-        if (typeof value !== "string") {
-          throw new Error("Invalid value for 'fullName' variant");
-        }
-        const variant = props.variants[variantName];
-        const variantField = variant.fields[0];
-        return (
-          <InputField
-            name="name"
-            showAsteriskIndicator={true}
-            placeholder={variantField.placeholder}
-            label={variantField.label}
-            containerClassName="w-full"
-            readOnly={props.readOnly}
-            value={value}
-            required={variantField.required}
-            type="text"
-            onChange={(e) => {
-              props.setValue(e.target.value);
-            }}
-          />
-        );
-      }
-
-      const variant = props.variants[variantName];
-
-      if (typeof value !== "object") {
-        throw new Error("Invalid value for 'fullName' variant");
-      }
-
-      return (
-        <div className="flex space-x-4">
-          {variant.fields.map((variantField) => (
-            <InputField
-              // Because the container is flex(and thus margin is being computed towards container height), I need to explicitly ensure that margin-bottom for the input becomes 0, which is mb-2 otherwise
-              className="!mb-0"
-              showAsteriskIndicator={true}
-              key={variantField.name}
-              name={variantField.name}
-              readOnly={props.readOnly}
-              placeholder={variantField.placeholder}
-              label={variantField.label}
-              containerClassName={`w-full testid-${variantField.name}`}
-              value={value[variantField.name as keyof typeof value]}
-              required={variantField.required}
-              type="text"
-              onChange={(e) => onChange(variantField.name, e.target.value)}
-            />
-          ))}
-        </div>
-      );
-    },
+    factory: (props) => <Widgets.TextWidget noLabel={true} {...props} />,
   },
   phone: {
-    propsType: propsTypes.phone,
+    propsType: "text",
     factory: ({ setValue, readOnly, ...props }) => {
       if (!props) {
         return <div />;
@@ -204,7 +105,7 @@ export const Components: Record<FieldType, Component> = {
     },
   },
   email: {
-    propsType: propsTypes.email,
+    propsType: "text",
     factory: (props) => {
       if (!props) {
         return <div />;
@@ -213,7 +114,7 @@ export const Components: Record<FieldType, Component> = {
     },
   },
   address: {
-    propsType: propsTypes.address,
+    propsType: "text",
     factory: (props) => {
       return (
         <AddressInput
@@ -226,7 +127,7 @@ export const Components: Record<FieldType, Component> = {
     },
   },
   multiemail: {
-    propsType: propsTypes.multiemail,
+    propsType: "textList",
     //TODO: Make it a ui component
     factory: function MultiEmail({ value, readOnly, label, setValue, ...props }) {
       const placeholder = props.placeholder;
@@ -312,7 +213,7 @@ export const Components: Record<FieldType, Component> = {
     },
   },
   multiselect: {
-    propsType: propsTypes.multiselect,
+    propsType: "multiselect",
     factory: (props) => {
       const newProps = {
         ...props,
@@ -322,7 +223,7 @@ export const Components: Record<FieldType, Component> = {
     },
   },
   select: {
-    propsType: propsTypes.select,
+    propsType: "select",
     factory: (props) => {
       const newProps = {
         ...props,
@@ -332,7 +233,7 @@ export const Components: Record<FieldType, Component> = {
     },
   },
   checkbox: {
-    propsType: propsTypes.checkbox,
+    propsType: "multiselect",
     factory: ({ options, readOnly, setValue, value }) => {
       value = value || [];
       return (
@@ -354,7 +255,7 @@ export const Components: Record<FieldType, Component> = {
                   value={option.value}
                   checked={value.includes(option.value)}
                 />
-                <span className="text-emphasis me-2 ms-2 text-sm">{option.label ?? ""}</span>
+                <span className="text-emphasis ms-2 me-2 text-sm">{option.label ?? ""}</span>
               </label>
             );
           })}
@@ -363,7 +264,7 @@ export const Components: Record<FieldType, Component> = {
     },
   },
   radio: {
-    propsType: propsTypes.radio,
+    propsType: "select",
     factory: ({ setValue, name, value, options }) => {
       return (
         <Group
@@ -386,7 +287,7 @@ export const Components: Record<FieldType, Component> = {
     },
   },
   radioInput: {
-    propsType: propsTypes.radioInput,
+    propsType: "objectiveWithInput",
     factory: function RadioInputWithLabel({ name, options, optionsInputs, value, setValue, readOnly }) {
       useEffect(() => {
         if (!value) {
@@ -404,12 +305,12 @@ export const Components: Record<FieldType, Component> = {
               {options.length > 1 ? (
                 options.map((option, i) => {
                   return (
-                    <label key={i} className="mb-1 flex items-center">
+                    <label key={i} className="block">
                       <input
                         type="radio"
                         disabled={readOnly}
                         name={name}
-                        className="bg-default after:bg-default border-emphasis focus:ring-brand-default hover:bg-subtle hover:after:bg-subtle dark:checked:after:bg-brand-accent flex h-4 w-4 cursor-pointer items-center justify-center text-[--cal-brand] after:h-[6px] after:w-[6px] after:rounded-full after:content-[''] after:hover:block focus:ring-2 focus:ring-offset-0 ltr:mr-2 rtl:ml-2 dark:checked:hover:text-[--cal-brand]"
+                        className="dark:checked:bg-brand-default dark:bg-darkgray-100 dark:hover:bg-subtle dark:checked:hover:bg-brand-default focus:border-brand-default focus:ring-brand-default border-emphasis h-4 w-4 cursor-pointer text-[--cal-brand] focus:ring-2 ltr:mr-2 rtl:ml-2"
                         value={option.value}
                         onChange={(e) => {
                           setValue({
@@ -419,7 +320,7 @@ export const Components: Record<FieldType, Component> = {
                         }}
                         checked={value?.value === option.value}
                       />
-                      <span className="text-emphasis me-2 ms-2 text-sm">{option.label ?? ""}</span>
+                      <span className="text-emphasis ms-2 me-2 text-sm">{option.label ?? ""}</span>
                     </label>
                   );
                 })
@@ -429,7 +330,7 @@ export const Components: Record<FieldType, Component> = {
                   <Label>
                     {options[0].label}
                     {!readOnly && optionsInputs[options[0].value]?.required ? (
-                      <span className="text-default mb-1 ml-1 text-sm font-medium">*</span>
+                      <span className="text-default ml-1 mb-1 text-sm font-medium">*</span>
                     ) : null}
                   </Label>
                 </>
@@ -465,11 +366,11 @@ export const Components: Record<FieldType, Component> = {
     },
   },
   boolean: {
-    propsType: propsTypes.boolean,
+    propsType: "boolean",
     factory: ({ readOnly, label, value, setValue }) => {
       return (
         <div className="flex">
-          <CheckboxField
+          <Checkbox
             onChange={(e) => {
               if (e.target.checked) {
                 setValue(true);
@@ -480,9 +381,7 @@ export const Components: Record<FieldType, Component> = {
             placeholder=""
             checked={value}
             disabled={readOnly}
-            description=""
-            // Form Builder ensures that it would be safe HTML in here if the field type supports it. So, we can safely use label value in `descriptionAsSafeHtml`
-            descriptionAsSafeHtml={label ?? ""}
+            description={label ?? ""}
           />
         </div>
       );

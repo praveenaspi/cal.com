@@ -1,17 +1,17 @@
+import { useState } from "react";
+
 import { useAppContextWithSchema } from "@calcom/app-store/EventTypeAppContext";
 import AppCard from "@calcom/app-store/_components/AppCard";
-import useIsAppEnabled from "@calcom/app-store/_utils/useIsAppEnabled";
 import { SelectGifInput } from "@calcom/app-store/giphy/components";
 import type { EventTypeAppCardComponent } from "@calcom/app-store/types";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 
 import type { appDataSchema } from "../zod";
 
-const EventTypeAppCard: EventTypeAppCardComponent = function EventTypeAppCard({ app, eventType }) {
-  const [getAppData, setAppData, LockedIcon, disabled] = useAppContextWithSchema<typeof appDataSchema>();
+const EventTypeAppCard: EventTypeAppCardComponent = function EventTypeAppCard({ app }) {
+  const [getAppData, setAppData] = useAppContextWithSchema<typeof appDataSchema>();
   const thankYouPage = getAppData("thankYouPage");
-  const { enabled: showGifSelection, updateEnabled: setShowGifSelection } = useIsAppEnabled(app);
-
+  const [showGifSelection, setShowGifSelection] = useState(getAppData("enabled"));
   const { t } = useLocale();
 
   return (
@@ -19,17 +19,13 @@ const EventTypeAppCard: EventTypeAppCardComponent = function EventTypeAppCard({ 
       setAppData={setAppData}
       app={app}
       description={t("confirmation_page_gif")}
-      disableSwitch={disabled}
-      LockedIcon={LockedIcon}
       switchOnClick={(e) => {
         setShowGifSelection(e);
       }}
-      switchChecked={showGifSelection}
-      teamId={eventType.team?.id || undefined}>
+      switchChecked={showGifSelection}>
       {showGifSelection && (
         <SelectGifInput
           defaultValue={thankYouPage}
-          disabled={disabled}
           onChange={(url: string) => {
             setAppData("thankYouPage", url);
           }}

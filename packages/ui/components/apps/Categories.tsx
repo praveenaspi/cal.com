@@ -29,7 +29,7 @@ export function AppStoreCategories({
               perView: 2,
             },
           },
-        }}
+        } as any}
         renderItem={(category) => (
           <Link
             key={category.name}

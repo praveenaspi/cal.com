@@ -24,10 +24,9 @@ const Switch = (
       container?: string;
       thumb?: string;
     };
-    LockedIcon?: React.ReactNode;
   }
 ) => {
-  const { label, fitToHeight, classNames, labelOnLeading, LockedIcon, ...primitiveProps } = props;
+  const { label, fitToHeight, classNames, labelOnLeading, ...primitiveProps } = props;
   const id = useId();
   const isChecked = props.checked || props.defaultChecked;
   return (
@@ -39,7 +38,6 @@ const Switch = (
           labelOnLeading && "flex-row-reverse",
           classNames?.container
         )}>
-        {LockedIcon && <div className="mr-2">{LockedIcon}</div>}
         <PrimitiveSwitch.Root
           className={cx(
             isChecked ? "bg-brand-default" : "bg-emphasis",

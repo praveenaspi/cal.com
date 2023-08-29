@@ -121,19 +121,17 @@ const Reschedule = async (bookingUid: string, cancellationReason: string) => {
     const bookingRefsFiltered: BookingReference[] = bookingToReschedule.references.filter(
       (ref) => !!credentialsMap.get(ref.type)
     );
-
-    const promises = bookingRefsFiltered.map(async (bookingRef) => {
-      if (!bookingRef.uid) return;
-
-      if (bookingRef.type.endsWith("_calendar")) {
-        const calendar = await getCalendar(credentialsMap.get(bookingRef.type));
-        return calendar?.deleteEvent(bookingRef.uid, builder.calendarEvent);
-      } else if (bookingRef.type.endsWith("_video")) {
-        return deleteMeeting(credentialsMap.get(bookingRef.type), bookingRef.uid);
-      }
-    });
     try {
-      await Promise.all(promises);
+      bookingRefsFiltered.forEach(async (bookingRef) => {
+        if (bookingRef.uid) {
+          if (bookingRef.type.endsWith("_calendar")) {
+            const calendar = await getCalendar(credentialsMap.get(bookingRef.type));
+            return calendar?.deleteEvent(bookingRef.uid, builder.calendarEvent);
+          } else if (bookingRef.type.endsWith("_video")) {
+            return deleteMeeting(credentialsMap.get(bookingRef.type), bookingRef.uid);
+          }
+        }
+      });
     } catch (error) {
       if (error instanceof Error) {
         logger.error(error.message);

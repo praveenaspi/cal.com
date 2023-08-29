@@ -17,11 +17,7 @@ const ConnectedCalendars = (props: IConnectCalendarsProps) => {
   const { nextStep } = props;
   const queryConnectedCalendars = trpc.viewer.connectedCalendars.useQuery({ onboarding: true });
   const { t } = useLocale();
-  const queryIntegrations = trpc.viewer.integrations.useQuery({
-    variant: "calendar",
-    onlyInstalled: false,
-    sortByMostPopular: true,
-  });
+  const queryIntegrations = trpc.viewer.integrations.useQuery({ variant: "calendar", onlyInstalled: false });
 
   const firstCalendar = queryConnectedCalendars.data?.connectedCalendars.find(
     (item) => item.calendars && item.calendars?.length > 0

@@ -1,5 +1,5 @@
 export enum ErrorCode {
-  IncorrectEmailPassword = "incorrect-email-password",
+  IncorrectUsernamePassword = "incorrect-username-password",
   UserNotFound = "user-not-found",
   IncorrectPassword = "incorrect-password",
   UserMissingPassword = "missing-password",
@@ -8,7 +8,6 @@ export enum ErrorCode {
   TwoFactorSetupRequired = "two-factor-setup-required",
   SecondFactorRequired = "second-factor-required",
   IncorrectTwoFactorCode = "incorrect-two-factor-code",
-  IncorrectEmailVerificationCode = "incorrect_email_verification_code",
   InternalServerError = "internal-server-error",
   NewPasswordMatchesOld = "new-password-matches-old",
   ThirdPartyIdentityProviderEnabled = "third-party-identity-provider-enabled",

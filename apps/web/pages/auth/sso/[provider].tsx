@@ -1,11 +1,10 @@
 import type { GetServerSidePropsContext } from "next";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/router";
 import { useEffect } from "react";
 
 import { getPremiumMonthlyPlanPriceId } from "@calcom/app-store/stripepayment/lib/utils";
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
-import { orgDomainConfig } from "@calcom/features/ee/organizations/lib/orgDomains";
 import stripe from "@calcom/features/ee/payments/server/stripe";
 import {
   hostedCal,
@@ -27,12 +26,11 @@ import { ssrInit } from "@server/lib/ssr";
 export type SSOProviderPageProps = inferSSRProps<typeof getServerSideProps>;
 
 export default function Provider(props: SSOProviderPageProps) {
-  const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
     if (props.provider === "saml") {
-      const email = searchParams?.get("email");
+      const email = typeof router.query?.email === "string" ? router.query?.email : null;
 
       if (!email) {
         router.push("/auth/error?error=" + "Email not provided");
@@ -70,12 +68,11 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
 
   const session = await getServerSession({ req, res });
   const ssr = await ssrInit(context);
-  const { currentOrgDomain } = orgDomainConfig(context.req.headers.host ?? "");
 
   if (session) {
     // Validating if username is Premium, while this is true an email its required for stripe user confirmation
     if (usernameParam && session.user.email) {
-      const availability = await checkUsername(usernameParam, currentOrgDomain);
+      const availability = await checkUsername(usernameParam);
       if (availability.available && availability.premium) {
         const stripePremiumUrl = await getStripePremiumUsernameUrl({
           userEmail: session.user.email,

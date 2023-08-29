@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
 
 import useAddAppMutation from "@calcom/app-store/_utils/useAddAppMutation";
@@ -34,7 +34,6 @@ export const InstallAppButtonWithoutPlanCheck = (
           onClick: () => {
             mutation.mutate({ type: props.type });
           },
-          isLoading: mutation.isLoading,
         })}
       </>
     );
@@ -113,7 +112,7 @@ export const AppDependencyComponent = ({
   return (
     <div
       className={classNames(
-        "rounded-md px-4 py-3",
+        "rounded-md py-3 px-4",
         dependencyData && dependencyData.some((dependency) => !dependency.installed) ? "bg-info" : "bg-subtle"
       )}>
       {dependencyData &&
@@ -122,7 +121,7 @@ export const AppDependencyComponent = ({
             <div className="items-start space-x-2.5">
               <div className="flex items-start">
                 <div>
-                  <Check className="mr-2 mt-1 font-semibold" />
+                  <Check className="mt-1 mr-2 font-semibold" />
                 </div>
                 <div>
                   <span className="font-semibold">
@@ -145,7 +144,7 @@ export const AppDependencyComponent = ({
             <div className="items-start space-x-2.5">
               <div className="text-info flex items-start">
                 <div>
-                  <AlertCircle className="mr-2 mt-1 font-semibold" />
+                  <AlertCircle className="mt-1 mr-2 font-semibold" />
                 </div>
                 <div>
                   <span className="font-semibold">

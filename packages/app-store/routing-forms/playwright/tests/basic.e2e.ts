@@ -3,7 +3,6 @@ import { expect } from "@playwright/test";
 
 import type { Fixtures } from "@calcom/web/playwright/lib/fixtures";
 import { test } from "@calcom/web/playwright/lib/fixtures";
-import { gotoRoutingLink } from "@calcom/web/playwright/lib/testUtils";
 
 function todo(title: string) {
   // eslint-disable-next-line playwright/no-skipped-test, @typescript-eslint/no-empty-function
@@ -17,7 +16,7 @@ test.describe("Routing Forms", () => {
 
       const formId = await addForm(page);
 
-      await page.click('[href*="/forms"]');
+      await page.click('[href="/apps/routing-forms/forms"]');
 
       await page.waitForSelector('[data-testid="routing-forms-list"]');
       // Ensure that it's visible in forms list
@@ -54,7 +53,7 @@ test.describe("Routing Forms", () => {
 
       await expectCurrentFormToHaveFields(page, createdFields, types);
 
-      await page.click('[href*="/route-builder/"]');
+      await page.click('[href*="/apps/routing-forms/route-builder/"]');
       await selectNewRoute(page);
 
       await page.click('[data-testid="add-rule"]');
@@ -86,7 +85,7 @@ test.describe("Routing Forms", () => {
         });
 
         // Add F1 as Router to F2
-        await page.goto(`/routing-forms/route-builder/${form2Id}`);
+        await page.goto(`/apps/routing-forms/route-builder/${form2Id}`);
         await selectNewRoute(page, {
           // It should be F1. TODO: Verify that it's F1
           routeSelectNumber: 2,
@@ -94,7 +93,7 @@ test.describe("Routing Forms", () => {
         await saveCurrentForm(page);
 
         // Expect F1 fields to be available in F2
-        await page.goto(`/routing-forms/form-edit/${form2Id}`);
+        await page.goto(`/apps/routing-forms/form-edit/${form2Id}`);
         //FIXME: Figure out why this delay is required. Without it field count comes out to be 1 only
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -108,7 +107,7 @@ test.describe("Routing Forms", () => {
           },
         });
 
-        await page.goto(`/routing-forms/form-edit/${form2Id}`);
+        await page.goto(`/apps/routing-forms/form-edit/${form2Id}`);
         //FIXME: Figure out why this delay is required. Without it field count comes out to be 1 only
         await new Promise((resolve) => setTimeout(resolve, 1000));
         expect(await page.locator('[data-testid="field"]').count()).toBe(3);
@@ -119,7 +118,7 @@ test.describe("Routing Forms", () => {
 
     test("should be able to submit a prefilled form with all types of fields", async ({ page }) => {
       const formId = await addForm(page);
-      await page.click('[href*="/route-builder/"]');
+      await page.click('[href*="/apps/routing-forms/route-builder/"]');
       await selectNewRoute(page);
       await selectOption({
         selector: {
@@ -182,8 +181,11 @@ test.describe("Routing Forms", () => {
           hasTeam: true,
         }
       );
-      await user.apiLogin();
-      await page.goto(`/routing-forms/forms`);
+      await user.login();
+      // Install app
+      await page.goto(`/apps/routing-forms`);
+      await page.click('[data-testid="install-app-button"]');
+      await page.waitForURL((url) => url.pathname === `/apps/routing-forms/forms`);
     });
 
     test.afterEach(async ({ users }) => {
@@ -199,17 +201,27 @@ test.describe("Routing Forms", () => {
       // This also delete forms on cascade
       await users.deleteAll();
     });
-    const createUserAndLogin = async function ({ users, page }: { users: Fixtures["users"]; page: Page }) {
+    const createUserAndLoginAndInstallApp = async function ({
+      users,
+      page,
+    }: {
+      users: Fixtures["users"];
+      page: Page;
+    }) {
       const user = await users.create(
         { username: "routing-forms" },
         { seedRoutingForms: true, hasTeam: true }
       );
-      await user.apiLogin();
+      await user.login();
+      // Install app
+      await page.goto(`/apps/routing-forms`);
+      await page.click('[data-testid="install-app-button"]');
+      await page.waitForURL((url) => url.pathname === `/apps/routing-forms/forms`);
       return user;
     };
 
     test("Routing Link - Reporting and CSV Download ", async ({ page, users }) => {
-      const user = await createUserAndLogin({ users, page });
+      const user = await createUserAndLoginAndInstallApp({ users, page });
       const routingForm = user.routingForms[0];
       test.setTimeout(120000);
       // Fill form when you are logged out
@@ -218,10 +230,13 @@ test.describe("Routing Forms", () => {
       await fillSeededForm(page, routingForm.id);
 
       // Log back in to view form responses.
-      await user.apiLogin();
+      await user.login();
 
-      await page.goto(`/routing-forms/reporting/${routingForm.id}`);
-
+      await page.goto(`/apps/routing-forms/reporting/${routingForm.id}`);
+      // Can't keep waiting forever. So, added a timeout of 5000ms
+      await page.waitForResponse((response) => response.url().includes("appRoutingForms/report"), {
+        timeout: 5000,
+      });
       const headerEls = page.locator("[data-testid='reporting-header'] th");
       // Once the response is there, React would soon render it, so 500ms is enough
       // FIXME: Sometimes it takes more than 500ms, so added a timeout of 1000ms for now. There might be something wrong with rendering.
@@ -290,7 +305,7 @@ test.describe("Routing Forms", () => {
     });
 
     test("Router URL should work", async ({ page, users }) => {
-      const user = await createUserAndLogin({ users, page });
+      const user = await createUserAndLoginAndInstallApp({ users, page });
       const routingForm = user.routingForms[0];
 
       // Router should be publicly accessible
@@ -313,7 +328,7 @@ test.describe("Routing Forms", () => {
     });
 
     test("Routing Link should validate fields", async ({ page, users }) => {
-      const user = await createUserAndLogin({ users, page });
+      const user = await createUserAndLoginAndInstallApp({ users, page });
       const routingForm = user.routingForms[0];
       await gotoRoutingLink({ page, formId: routingForm.id });
       page.click('button[type="submit"]');
@@ -325,7 +340,7 @@ test.describe("Routing Forms", () => {
     });
 
     test("Test preview should return correct route", async ({ page, users }) => {
-      const user = await createUserAndLogin({ users, page });
+      const user = await createUserAndLoginAndInstallApp({ users, page });
       const routingForm = user.routingForms[0];
       page.goto(`apps/routing-forms/form-edit/${routingForm.id}`);
       await page.click('[data-testid="test-preview"]');
@@ -379,7 +394,7 @@ async function expectCurrentFormToHaveFields(
   types: string[]
 ) {
   for (const [index, field] of Object.entries(fields)) {
-    expect(await page.inputValue(`[data-testid="fields.${index}.label"]`)).toBe(field.label);
+    expect(await page.inputValue(`[name="fields.${index}.label"]`)).toBe(field.label);
     expect(await page.locator(".data-testid-field-type").nth(+index).locator("div").nth(1).innerText()).toBe(
       types[field.typeIndex]
     );
@@ -408,10 +423,8 @@ async function fillSeededForm(page: Page, routingFormId: string) {
 }
 
 export async function addForm(page: Page, { name = "Test Form Name" } = {}) {
-  await page.goto("/routing-forms/forms");
+  await page.goto("/apps/routing-forms/forms");
   await page.click('[data-testid="new-routing-form"]');
-  // Choose to create the Form for the user(which is the first option) and not the team
-  await page.click('[data-testid="option-0"]');
   await page.fill("input[name]", name);
   await page.click('[data-testid="add-form"]');
   await page.waitForSelector('[data-testid="add-field"]');
@@ -501,7 +514,7 @@ export async function addOneFieldAndDescriptionAndSaveForm(
   const nextFieldIndex = (await page.locator('[data-testid="field"]').count()) - 1;
 
   if (form.field) {
-    await page.fill(`[data-testid="fields.${nextFieldIndex}.label"]`, form.field.label);
+    await page.fill(`[name="fields.${nextFieldIndex}.label"]`, form.field.label);
     await page
       .locator('[data-testid="field"]')
       .nth(nextFieldIndex)
@@ -580,6 +593,33 @@ async function selectNewRoute(page: Page, { routeSelectNumber = 1 } = {}) {
     option: routeSelectNumber,
     page,
   });
+}
+
+async function gotoRoutingLink({
+  page,
+  formId,
+  queryString = "",
+}: {
+  page: Page;
+  formId?: string;
+  queryString?: string;
+}) {
+  let previewLink = null;
+  if (!formId) {
+    // Instead of clicking on the preview link, we are going to the preview link directly because the earlier opens a new tab which is a bit difficult to manage with Playwright
+    const href = await page.locator('[data-testid="form-action-preview"]').getAttribute("href");
+    if (!href) {
+      throw new Error("Preview link not found");
+    }
+    previewLink = href;
+  } else {
+    previewLink = `/forms/${formId}`;
+  }
+
+  await page.goto(`${previewLink}${queryString ? `?${queryString}` : ""}`);
+
+  // HACK: There seems to be some issue with the inputs to the form getting reset if we don't wait.
+  await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
 async function saveCurrentForm(page: Page) {

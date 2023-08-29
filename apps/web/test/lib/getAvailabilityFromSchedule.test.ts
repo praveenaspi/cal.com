@@ -1,13 +1,11 @@
 import type { Availability } from "@prisma/client";
-import { expect, it, beforeAll, vi } from "vitest";
+import MockDate from "mockdate";
+import { expect, it } from "vitest";
 
 import dayjs from "@calcom/dayjs";
 import { getAvailabilityFromSchedule } from "@calcom/lib/availability";
 
-
-beforeAll(() => {
-  vi.setSystemTime(new Date("2021-06-20T11:59:59Z"));
-})
+MockDate.set("2021-06-20T11:59:59Z");
 
 //parse "hh:mm-hh:mm" into <Availability> object
 const parseWorkingHours = (workingHours: string) => {

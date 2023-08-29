@@ -1,4 +1,4 @@
-import type { Membership, Team, UserPermissionRole } from "@prisma/client";
+import type { UserPermissionRole, Membership, Team } from "@prisma/client";
 import type { AuthOptions, Session } from "next-auth";
 import { encode } from "next-auth/jwt";
 import type { Provider } from "next-auth/providers";
@@ -9,12 +9,12 @@ import GoogleProvider from "next-auth/providers/google";
 import checkLicense from "@calcom/features/ee/common/server/checkLicense";
 import ImpersonationProvider from "@calcom/features/ee/impersonation/lib/ImpersonationProvider";
 import { clientSecretVerifier, hostedCal, isSAMLLoginEnabled } from "@calcom/features/ee/sso/lib/saml";
-import { checkRateLimitAndThrowError } from "@calcom/lib/checkRateLimitAndThrowError";
 import { IS_TEAM_BILLING_ENABLED, WEBAPP_URL } from "@calcom/lib/constants";
 import { symmetricDecrypt } from "@calcom/lib/crypto";
 import { defaultCookies } from "@calcom/lib/default-cookies";
 import { isENVDev } from "@calcom/lib/env";
 import { randomString } from "@calcom/lib/random";
+import rateLimit from "@calcom/lib/rateLimit";
 import slugify from "@calcom/lib/slugify";
 import prisma from "@calcom/prisma";
 import { IdentityProvider } from "@calcom/prisma/enums";
@@ -82,15 +82,8 @@ const providers: Provider[] = [
           metadata: true,
           identityProvider: true,
           password: true,
-          organizationId: true,
           twoFactorEnabled: true,
           twoFactorSecret: true,
-          locale: true,
-          organization: {
-            select: {
-              id: true,
-            },
-          },
           teams: {
             include: {
               team: true,
@@ -101,28 +94,29 @@ const providers: Provider[] = [
 
       // Don't leak information about it being username or password that is invalid
       if (!user) {
-        throw new Error(ErrorCode.IncorrectEmailPassword);
+        throw new Error(ErrorCode.IncorrectUsernamePassword);
       }
 
-      await checkRateLimitAndThrowError({
-        identifier: user.email,
+      const limiter = rateLimit({
+        intervalInMs: 60 * 1000, // 1 minute
       });
+      await limiter.check(10, user.email); // 10 requests per minute
 
       if (user.identityProvider !== IdentityProvider.CAL && !credentials.totpCode) {
         throw new Error(ErrorCode.ThirdPartyIdentityProviderEnabled);
       }
 
       if (!user.password && user.identityProvider !== IdentityProvider.CAL && !credentials.totpCode) {
-        throw new Error(ErrorCode.IncorrectEmailPassword);
+        throw new Error(ErrorCode.IncorrectUsernamePassword);
       }
 
-      if (user.password && !credentials.totpCode) {
+      if (user.password || !credentials.totpCode) {
         if (!user.password) {
-          throw new Error(ErrorCode.IncorrectEmailPassword);
+          throw new Error(ErrorCode.IncorrectUsernamePassword);
         }
         const isCorrectPassword = await verifyPassword(credentials.password, user.password);
         if (!isCorrectPassword) {
-          throw new Error(ErrorCode.IncorrectEmailPassword);
+          throw new Error(ErrorCode.IncorrectUsernamePassword);
         }
       }
 
@@ -149,10 +143,7 @@ const providers: Provider[] = [
           throw new Error(ErrorCode.InternalServerError);
         }
 
-        const isValidToken = (await import("@calcom/lib/totp")).totpAuthenticatorCheck(
-          credentials.totpCode,
-          secret
-        );
+        const isValidToken = (await import("otplib")).authenticator.check(credentials.totpCode, secret);
         if (!isValidToken) {
           throw new Error(ErrorCode.IncorrectTwoFactorCode);
         }
@@ -181,8 +172,6 @@ const providers: Provider[] = [
         name: user.name,
         role: validateRole(user.role),
         belongsToActiveTeam: hasActiveTeams,
-        organizationId: user.organizationId,
-        locale: user.locale,
       };
     },
   }),
@@ -227,7 +216,6 @@ if (isSAMLLoginEnabled) {
         email: profile.email || "",
         name: `${profile.firstName || ""} ${profile.lastName || ""}`.trim(),
         email_verified: true,
-        locale: profile.locale,
       };
     },
     options: {
@@ -355,16 +343,7 @@ export const AUTH_OPTIONS: AuthOptions = {
   },
   providers,
   callbacks: {
-    async jwt({ token, user, account, trigger, session }) {
-      if (trigger === "update") {
-        return {
-          ...token,
-          locale: session?.locale ?? token.locale,
-          name: session?.name ?? token.name,
-          username: session?.username ?? token.username,
-          email: session?.email ?? token.email,
-        };
-      }
+    async jwt({ token, user, account }) {
       const autoMergeIdentities = async () => {
         const existingUser = await prisma.user.findFirst({
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -374,9 +353,7 @@ export const AUTH_OPTIONS: AuthOptions = {
             username: true,
             name: true,
             email: true,
-            organizationId: true,
             role: true,
-            locale: true,
             teams: {
               include: {
                 team: true,
@@ -391,7 +368,7 @@ export const AUTH_OPTIONS: AuthOptions = {
 
         // Check if the existingUser has any active teams
         const belongsToActiveTeam = checkIfUserBelongsToActiveTeam(existingUser);
-        const { teams: _teams, ...existingUserWithoutTeamsField } = existingUser;
+        const { teams, ...existingUserWithoutTeamsField } = existingUser;
 
         return {
           ...existingUserWithoutTeamsField,
@@ -420,8 +397,6 @@ export const AUTH_OPTIONS: AuthOptions = {
           role: user.role,
           impersonatedByUID: user?.impersonatedByUID,
           belongsToActiveTeam: user?.belongsToActiveTeam,
-          organizationId: user?.organizationId,
-          locale: user?.locale,
         };
       }
 
@@ -459,8 +434,6 @@ export const AUTH_OPTIONS: AuthOptions = {
           role: existingUser.role,
           impersonatedByUID: token.impersonatedByUID as number,
           belongsToActiveTeam: token?.belongsToActiveTeam as boolean,
-          organizationId: token?.organizationId,
-          locale: existingUser.locale,
         };
       }
 
@@ -479,8 +452,6 @@ export const AUTH_OPTIONS: AuthOptions = {
           role: token.role as UserPermissionRole,
           impersonatedByUID: token.impersonatedByUID as number,
           belongsToActiveTeam: token?.belongsToActiveTeam as boolean,
-          organizationId: token?.organizationId,
-          locale: token.locale,
         },
       };
       return calendsoSession;
@@ -579,7 +550,7 @@ export const AUTH_OPTIONS: AuthOptions = {
                 console.error("Error while linking account of already existing user");
               }
             }
-            if (existingUser.twoFactorEnabled && existingUser.identityProvider === idP) {
+            if (existingUser.twoFactorEnabled) {
               return loginWithTotp(existingUser);
             } else {
               return true;
@@ -619,11 +590,7 @@ export const AUTH_OPTIONS: AuthOptions = {
 
         if (existingUserWithEmail) {
           // if self-hosted then we can allow auto-merge of identity providers if email is verified
-          if (
-            !hostedCal &&
-            existingUserWithEmail.emailVerified &&
-            existingUserWithEmail.identityProvider !== IdentityProvider.CAL
-          ) {
+          if (!hostedCal && existingUserWithEmail.emailVerified) {
             if (existingUserWithEmail.twoFactorEnabled) {
               return loginWithTotp(existingUserWithEmail);
             } else {
@@ -638,9 +605,7 @@ export const AUTH_OPTIONS: AuthOptions = {
             !existingUserWithEmail.username
           ) {
             await prisma.user.update({
-              where: {
-                email: existingUserWithEmail.email,
-              },
+              where: { email: existingUserWithEmail.email },
               data: {
                 // update the email to the IdP email
                 email: user.email,

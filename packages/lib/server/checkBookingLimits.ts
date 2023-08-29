@@ -1,31 +1,34 @@
 import dayjs from "@calcom/dayjs";
 import prisma from "@calcom/prisma";
-import { BookingStatus } from "@calcom/prisma/enums";
 import type { IntervalLimit } from "@calcom/types/Calendar";
 
-import { getErrorFromUnknown } from "../errors";
 import { HttpError } from "../http-error";
-import { ascendingLimitKeys, intervalLimitKeyToUnit } from "../intervalLimit";
 import { parseBookingLimit } from "../isBookingLimits";
 
 export async function checkBookingLimits(
   bookingLimits: IntervalLimit,
   eventStartDate: Date,
-  eventId: number
+  eventId: number,
+  returnBusyTimes?: boolean
 ) {
   const parsedBookingLimits = parseBookingLimit(bookingLimits);
-  if (!parsedBookingLimits) return false;
-
-  // not iterating entries to preserve types
-  const limitCalculations = ascendingLimitKeys.map((key) =>
-    checkBookingLimit({ key, limitingNumber: parsedBookingLimits[key], eventStartDate, eventId })
-  );
-
-  try {
-    return !!(await Promise.all(limitCalculations));
-  } catch (error) {
-    throw new HttpError({ message: getErrorFromUnknown(error).message, statusCode: 401 });
+  if (parsedBookingLimits) {
+    const limitCalculations = Object.entries(parsedBookingLimits).map(
+      async ([key, limitingNumber]) =>
+        await checkBookingLimit({ key, limitingNumber, eventStartDate, eventId, returnBusyTimes })
+    );
+    await Promise.all(limitCalculations)
+      .then((res) => {
+        if (returnBusyTimes) {
+          return res;
+        }
+      })
+      .catch((error) => {
+        throw new HttpError({ message: error.message, statusCode: 401 });
+      });
+    return true;
   }
+  return false;
 }
 
 export async function checkBookingLimit({
@@ -33,39 +36,59 @@ export async function checkBookingLimit({
   eventId,
   key,
   limitingNumber,
+  returnBusyTimes = false,
 }: {
   eventStartDate: Date;
   eventId: number;
-  key: keyof IntervalLimit;
-  limitingNumber: number | undefined;
+  key: string;
+  limitingNumber: number;
+  returnBusyTimes?: boolean;
 }) {
   {
-    if (!limitingNumber) return;
+    const limitKey = key as keyof IntervalLimit;
+    // Take PER_DAY and turn it into day and PER_WEEK into week etc.
+    const filter = limitKey.split("_")[1].toLocaleLowerCase() as "day" | "week" | "month" | "year"; // Have to cast here
+    const startDate = dayjs(eventStartDate).startOf(filter).toDate();
+    // this is parsed above with parseBookingLimit so we know it's safe.
 
-    const unit = intervalLimitKeyToUnit(key);
+    const endDate = dayjs(startDate).endOf(filter).toDate();
 
-    const startDate = dayjs(eventStartDate).startOf(unit).toDate();
-    const endDate = dayjs(eventStartDate).endOf(unit).toDate();
-
+    // This allows us to easily add it within dayjs
     const bookingsInPeriod = await prisma.booking.count({
       where: {
-        status: BookingStatus.ACCEPTED,
-        eventTypeId: eventId,
-        // FIXME: bookings that overlap on one side will never be counted
-        startTime: {
-          gte: startDate,
-        },
-        endTime: {
-          lte: endDate,
+        status: "ACCEPTED",
+        eventType: {
+          AND: [
+            {
+              id: eventId,
+              bookings: {
+                every: {
+                  startTime: {
+                    gte: startDate,
+                  },
+                  endTime: {
+                    lte: endDate,
+                  },
+                },
+              },
+            },
+          ],
         },
       },
     });
+    if (bookingsInPeriod >= limitingNumber) {
+      // This is used when getting availability
+      if (returnBusyTimes) {
+        return {
+          start: startDate,
+          end: endDate,
+        };
+      }
 
-    if (bookingsInPeriod < limitingNumber) return;
-
-    throw new HttpError({
-      message: `booking_limit_reached`,
-      statusCode: 403,
-    });
+      throw new HttpError({
+        message: `booking_limit_reached`,
+        statusCode: 403,
+      });
+    }
   }
 }

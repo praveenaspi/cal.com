@@ -1,13 +1,11 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
+// import { useAutoAnimate } from "@formkit/auto-animate/react";
 import Link from "next/link";
 import React, { useCallback, useState } from "react";
 import { Query, Builder, Utils as QbUtils } from "react-awesome-query-builder";
 // types
 import type { JsonTree, ImmutableTree, BuilderProps } from "react-awesome-query-builder";
-import type { UseFormReturn } from "react-hook-form";
 
 import Shell from "@calcom/features/shell/Shell";
-import { areTheySiblingEntitites } from "@calcom/lib/entityPermissionUtils";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { trpc } from "@calcom/trpc/react";
 import type { inferSSRProps } from "@calcom/types/inferSSRProps";
@@ -21,7 +19,6 @@ import {
   Divider,
 } from "@calcom/ui";
 
-import type { RoutingFormWithResponseCount } from "../../components/SingleForm";
 import SingleForm, {
   getServerSidePropsForSingleFormView as getServerSideProps,
 } from "../../components/SingleForm";
@@ -68,7 +65,6 @@ type Route =
   | GlobalRoute;
 
 const Route = ({
-  form,
   route,
   routes,
   setRoute,
@@ -79,7 +75,6 @@ const Route = ({
   appUrl,
   disabled = false,
 }: {
-  form: inferSSRProps<typeof getServerSideProps>["form"];
   route: Route;
   routes: Route[];
   setRoute: (id: string, route: Partial<Route>) => void;
@@ -96,27 +91,8 @@ const Route = ({
 
   const eventOptions: { label: string; value: string }[] = [];
   eventTypesByGroup?.eventTypeGroups.forEach((group) => {
-    const eventTypeValidInContext = areTheySiblingEntitites({
-      entity1: {
-        teamId: group.teamId ?? null,
-        // group doesn't have userId. The query ensures that it belongs to the user only, if teamId isn't set. So, I am manually setting it to the form userId
-        userId: form.userId,
-      },
-      entity2: {
-        teamId: form.teamId ?? null,
-        userId: form.userId,
-      },
-    });
-
     group.eventTypes.forEach((eventType) => {
       const uniqueSlug = `${group.profile.slug}/${eventType.slug}`;
-      const isRouteAlreadyInUse = isRouter(route) ? false : uniqueSlug === route.action.value;
-
-      // If Event is already in use, we let it be so as to not break the existing setup
-      if (!isRouteAlreadyInUse && !eventTypeValidInContext) {
-        return;
-      }
-
       eventOptions.push({
         label: uniqueSlug,
         value: uniqueSlug,
@@ -269,7 +245,7 @@ const Route = ({
 
             {((route.isFallback && hasRules(route)) || !route.isFallback) && (
               <>
-                <Divider className="mb-6 mt-3" />
+                <Divider className="mt-3 mb-6" />
                 <Query
                   {...config}
                   value={route.state.tree}
@@ -306,13 +282,15 @@ const Routes = ({
   appUrl,
 }: {
   form: inferSSRProps<typeof getServerSideProps>["form"];
-  hookForm: UseFormReturn<RoutingFormWithResponseCount>;
+  // Figure out the type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  hookForm: any;
   appUrl: string;
 }) => {
-  const { routes: serializedRoutes } = hookForm.getValues();
+  const { routes: serializedRoutes } = form;
   const { t } = useLocale();
 
-  const config = getQueryBuilderConfig(hookForm.getValues());
+  const config = getQueryBuilderConfig(form);
   const [routes, setRoutes] = useState(() => {
     const transformRoutes = () => {
       const _routes = serializedRoutes || [getEmptyRoute()];
@@ -330,26 +308,14 @@ const Routes = ({
       return deserializeRoute(route, config);
     });
   });
-
   const { data: allForms } = trpc.viewer.appRoutingForms.forms.useQuery();
 
   const availableRouters =
-    allForms?.filtered
-      .filter(({ form: router }) => {
-        const routerValidInContext = areTheySiblingEntitites({
-          entity1: {
-            teamId: router.teamId ?? null,
-            // group doesn't have userId. The query ensures that it belongs to the user only, if teamId isn't set. So, I am manually setting it to the form userId
-            userId: router.userId,
-          },
-          entity2: {
-            teamId: hookForm.getValues().teamId ?? null,
-            userId: hookForm.getValues().userId,
-          },
-        });
-        return router.id !== hookForm.getValues().id && routerValidInContext;
+    allForms
+      ?.filter((router) => {
+        return router.id !== form.id;
       })
-      .map(({ form: router }) => {
+      .map((router) => {
         return {
           value: router.id,
           label: router.name,
@@ -393,7 +359,7 @@ const Routes = ({
     })
   );
 
-  const [animationRef] = useAutoAnimate<HTMLDivElement>();
+  // const [animationRef] = useAutoAnimate<HTMLDivElement>();
 
   const mainRoutes = routes.filter((route) => {
     if (isRouter(route)) return true;
@@ -455,11 +421,10 @@ const Routes = ({
 
   return (
     <div className="bg-default border-subtle flex flex-col-reverse rounded-md border p-8 md:flex-row">
-      <div ref={animationRef} className="w-full ltr:mr-2 rtl:ml-2">
+      <div className="w-full ltr:mr-2 rtl:ml-2">
         {mainRoutes.map((route, key) => {
           return (
             <Route
-              form={form}
               appUrl={appUrl}
               key={route.id}
               config={config}
@@ -529,7 +494,6 @@ const Routes = ({
 
         <div>
           <Route
-            form={form}
             config={config}
             route={fallbackRoute}
             routes={routes}

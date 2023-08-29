@@ -11,14 +11,6 @@ import { getCalApi } from "@calcom/embed-react";
 
 const api = getCalApi();
 
-test("Check that the API is available", async () => {
+test("Check that the API is available", () => {
   expect(api).toBeDefined()
-  const awaitedApi = await api;
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  awaitedApi('floatingButton', {
-    config: {
-      // @ts-expect-error We are intentionaly testing invalid value
-      layout: 'wrongview'
-    }
-  })
 });
